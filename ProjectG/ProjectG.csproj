@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<AssemblyName>ProjectG</AssemblyName>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<Nullable>enable</Nullable>
+		<UseWindowsForms>true</UseWindowsForms>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Platforms>AnyCPU;x64</Platforms>
+		<ApplicationIcon>projectgicon.ico</ApplicationIcon>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <Content Include="projectgicon.ico" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\ProjectG.Application\ProjectG.ApplicationLayer.csproj" />
+		<ProjectReference Include="..\ProjectG.Domain\ProjectG.DomainLayer.csproj" />
+	</ItemGroup>
+
+</Project>
