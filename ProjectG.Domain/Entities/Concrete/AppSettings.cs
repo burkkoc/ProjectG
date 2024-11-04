@@ -38,7 +38,7 @@ namespace ProjectG.DomainLayer.Entities.Concrete
 
 
         public static int[] MailBoxShowsUpDowntime { get; set; } = [1, 4]; //Mailbox ekranı tespit edilmesiyle sıradaki olayın işleme alınması arasındaki süre
-
+        public static bool DualClient { get; set; } = false;
         //if mailboxrandomizedpossibility is true
         public static bool MailBoxCloseRandomize { get; set; }
 

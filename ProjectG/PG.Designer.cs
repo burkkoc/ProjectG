@@ -41,6 +41,7 @@
             groupBox1 = new GroupBox();
             groupBox2 = new GroupBox();
             LblState = new Label();
+            cBoxDualClient = new CheckBox();
             gBoxCycleDowntime.SuspendLayout();
             groupBox1.SuspendLayout();
             groupBox2.SuspendLayout();
@@ -116,9 +117,9 @@
             btnStart.Enabled = false;
             btnStart.Font = new Font("Verdana", 9F);
             btnStart.ForeColor = Color.FromArgb(64, 64, 64);
-            btnStart.Location = new Point(327, 14);
+            btnStart.Location = new Point(327, 44);
             btnStart.Name = "btnStart";
-            btnStart.Size = new Size(69, 80);
+            btnStart.Size = new Size(69, 50);
             btnStart.TabIndex = 5;
             btnStart.Text = "Locate Mailbox";
             btnStart.UseVisualStyleBackColor = true;
@@ -175,11 +176,22 @@
             LblState.Text = "State";
             LblState.TextAlign = ContentAlignment.MiddleCenter;
             // 
+            // cBoxDualClient
+            // 
+            cBoxDualClient.AutoSize = true;
+            cBoxDualClient.Location = new Point(327, 19);
+            cBoxDualClient.Name = "cBoxDualClient";
+            cBoxDualClient.Size = new Size(81, 19);
+            cBoxDualClient.TabIndex = 9;
+            cBoxDualClient.Text = "DualClient";
+            cBoxDualClient.UseVisualStyleBackColor = true;
+            // 
             // PG
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(403, 102);
+            ClientSize = new Size(409, 102);
+            Controls.Add(cBoxDualClient);
             Controls.Add(groupBox2);
             Controls.Add(groupBox1);
             Controls.Add(btnStart);
@@ -199,6 +211,7 @@
             groupBox1.ResumeLayout(false);
             groupBox2.ResumeLayout(false);
             ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -213,5 +226,6 @@
         private GroupBox groupBox1;
         private GroupBox groupBox2;
         private Label LblState;
+        private CheckBox cBoxDualClient;
     }
 }

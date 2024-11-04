@@ -128,6 +128,8 @@ namespace ProjectG
             {
                 btnStart.Text = "Stop";
                 AppSettings.Working = true;
+                if (cBoxDualClient.Checked)
+                    AppSettings.DualClient = true;
                 _uiHelper.SetCycleDowntime();
 
                 //btnSettings.Enabled = false;

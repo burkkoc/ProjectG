@@ -33,7 +33,7 @@ namespace ProjectG.ApplicationLayer.Services
             try
             {
 
-                await Task.Delay(1000);
+                await Task.Delay(3000);
                 await _simulateService.MouseMove(50, ButtonContainer.AH);
                 if (TSMWindow.ChatWindow == null)
                 {
@@ -41,9 +41,18 @@ namespace ProjectG.ApplicationLayer.Services
                 }
                 if (!startingNow)
                 {
+                    //AppSettings.Downtime = UtilityService.SetCycleDowntime();
+                    //await Task.Delay(AppSettings.Downtime);
+                    //AppSettings.Downtime = 0;
+                    if (AppSettings.DualClient)
+                        await ManageDualClient();
+                    else
+                    {
                     AppSettings.Downtime = UtilityService.SetCycleDowntime();
-                    await Task.Delay(AppSettings.Downtime);
-                    AppSettings.Downtime = 0;
+                        await Task.Delay(AppSettings.Downtime);
+                        AppSettings.Downtime = 0;
+                    }
+
                 }
                 if (startingNow || isResetted)
                 {
@@ -197,7 +206,7 @@ namespace ProjectG.ApplicationLayer.Services
                     isWindowOpen = Task.Run(() => PixelProcessService.IsWindowOpen(Enums.ActiveWindow.AHMenu));
                 }
 
-                
+
 
                 if (isWindowOpen.IsCompleted && !isWindowOpen.Result)
                 {
@@ -472,7 +481,7 @@ namespace ProjectG.ApplicationLayer.Services
                     isWindowOpen = Task.Run(() => PixelProcessService.IsWindowOpen(Enums.ActiveWindow.AHMenu));
                 }
 
-                
+
 
                 if (isFailed.Result && isFailed.IsCompleted)
                 {
@@ -519,6 +528,11 @@ namespace ProjectG.ApplicationLayer.Services
             {
                 await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.ESCAPE);
             }
+        }
+
+        private async Task ManageDualClient()
+        {
+            await _simulateService.SwitchWindow();
         }
 
 

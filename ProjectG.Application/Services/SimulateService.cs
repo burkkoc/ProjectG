@@ -145,7 +145,15 @@ namespace ProjectG.ApplicationLayer.Services
             });
         }
 
+        public async Task<bool> SwitchWindow()
+        {
+            return await Task.Run(() =>
+            {
+                _inputSimulator.Keyboard.Sleep(UtilityService.GenerateRandom(50, 100)).KeyDown(VirtualKeyCode.LMENU).Sleep(UtilityService.GenerateRandom(50, 80)).KeyDown(VirtualKeyCode.TAB).Sleep(UtilityService.GenerateRandom(50, 80)).KeyUp(VirtualKeyCode.TAB).Sleep(UtilityService.GenerateRandom(50, 80)).KeyUp(VirtualKeyCode.LMENU).Sleep(UtilityService.GenerateRandom(50, 80));
 
+                return true;
+            });
+        }
 
 
     }
