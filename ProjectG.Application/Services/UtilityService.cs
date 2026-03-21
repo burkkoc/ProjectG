@@ -21,6 +21,18 @@ namespace ProjectG.ApplicationLayer.Services
             return Random.Shared.Next(numberStart, numberEnd);
         }
 
+        /// <summary>
+        /// İki uniform örneğin ortalaması; aralık [minInclusive, exclusiveMax) içinde kalır, dağılım merkeze yakındır.
+        /// </summary>
+        public static int RandomBiasedTowardCenterInRange(int minInclusive, int exclusiveMax)
+        {
+            if (minInclusive >= exclusiveMax)
+                return minInclusive;
+            int a = Random.Shared.Next(minInclusive, exclusiveMax);
+            int b = Random.Shared.Next(minInclusive, exclusiveMax);
+            return (a + b) / 2;
+        }
+
         public static bool SetScreenResolution(int screenResX, int screenResY)
         {
             try

@@ -1,4 +1,4 @@
-﻿using ProjectG.DomainLayer.Entities.Concrete;
+using ProjectG.DomainLayer.Entities.Concrete;
 using ProjectG.DomainLayer.Entities.Concrete.Statics;
 using ProjectG.DomainLayer.Entities.Enums;
 using ProjectG.InfrastructureLayer.Services;
@@ -30,7 +30,7 @@ namespace ProjectG.ApplicationLayer.Services
                     {
                         if (TSMWindow.AHBorder == null)
                         {
-                            await Task.Delay(500);
+                            await Task.Delay(UtilityService.GenerateRandom(380, 651));
                             TSMWindow.AHBorder = await PixelProcessService.FindTSMWindow(Enums.ActiveWindow.AHMenu);
                         }
                         else break;
@@ -77,7 +77,7 @@ namespace ProjectG.ApplicationLayer.Services
                     responses.Clear();
 
 
-                    await Task.Delay(500); // 0.5 saniye bekle
+                    await Task.Delay(UtilityService.GenerateRandom(380, 651)); // ~0.5 saniye, jitter
 
                 }
 
@@ -122,7 +122,7 @@ namespace ProjectG.ApplicationLayer.Services
                     if (responses.Any(r => r.Contains("Exit"))) //exit bulundu
                         return true;
 
-                    await Task.Delay(1000); // 1 saniye bekle
+                    await Task.Delay(UtilityService.GenerateRandom(820, 1181)); // ~1 saniye, jitter
                 }
 
                 return false; // 5 saniye dolmadan doğru sonuç bulunamadı
@@ -145,7 +145,7 @@ namespace ProjectG.ApplicationLayer.Services
                         if (TSMWindow.MailBoxBorder == null)
                         {
                             TSMWindow.MailBoxBorder = await PixelProcessService.FindTSMWindow(Enums.ActiveWindow.MailBox);
-                            await Task.Delay(500);
+                            await Task.Delay(UtilityService.GenerateRandom(380, 651));
                         }
                         else break;
                     }

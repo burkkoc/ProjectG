@@ -163,7 +163,7 @@ namespace ProjectG.ApplicationLayer.Services
                             if (IsColorMatch(color, StaticTSMButtons.RunCancelScan.BackgroundColor))
                                 return true;
                             else
-                                await Task.Delay(150);
+                                await Task.Delay(UtilityService.GenerateRandom(95, 206));
                         }
                     }
                 }
@@ -339,7 +339,7 @@ namespace ProjectG.ApplicationLayer.Services
             int positionY = tsmButton.Y;
             for (int i = 0; i < 90; i++)
             {
-                await Task.Delay(333);
+                await Task.Delay(UtilityService.GenerateRandom(260, 421));
                 using (Bitmap screenPixel = new Bitmap(1, 1))
                 {
                     using (Graphics g = Graphics.FromImage(screenPixel))

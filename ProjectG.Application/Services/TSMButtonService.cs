@@ -1,4 +1,4 @@
-﻿using ProjectG.DomainLayer.Entities.Abstract;
+using ProjectG.DomainLayer.Entities.Abstract;
 using ProjectG.DomainLayer.Entities.Concrete;
 using ProjectG.DomainLayer.Entities.Concrete.Statics;
 using ProjectG.DomainLayer.Entities.Enums;
@@ -24,8 +24,8 @@ namespace ProjectG.ApplicationLayer.Services
                 Border = finalRectangle,
                 X = finalRectangle.X,
                 Y = finalRectangle.Y,
-                AbsoluteX = ScreenService.CalculateAbsolutePositionX(UtilityService.GenerateRandom(finalRectangle.X, finalRectangle.X + finalRectangle.Width), UserInput.ScreenResolutionX),
-                AbsoluteY = ScreenService.CalculateAbsolutePositionY(UtilityService.GenerateRandom(finalRectangle.Y, finalRectangle.Y + finalRectangle.Height), UserInput.ScreenResolutionY),
+                AbsoluteX = ScreenService.CalculateAbsolutePositionX(UtilityService.RandomBiasedTowardCenterInRange(finalRectangle.X, finalRectangle.X + finalRectangle.Width), UserInput.ScreenResolutionX),
+                AbsoluteY = ScreenService.CalculateAbsolutePositionY(UtilityService.RandomBiasedTowardCenterInRange(finalRectangle.Y, finalRectangle.Y + finalRectangle.Height), UserInput.ScreenResolutionY),
                 Clickable = true,
                 ButtonContainer = buttonContainer,
                 BackgroundColor = PixelProcessService.GetBackgroundColor(finalRectangle.X, finalRectangle.Y)

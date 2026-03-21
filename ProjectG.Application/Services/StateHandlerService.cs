@@ -33,7 +33,7 @@ namespace ProjectG.ApplicationLayer.Services
             try
             {
 
-                await Task.Delay(3000);
+                await Task.Delay(UtilityService.GenerateRandom(2400, 3601));
                 await _simulateService.MouseMove(50, ButtonContainer.AH);
                 if (TSMWindow.ChatWindow == null)
                 {
@@ -57,7 +57,7 @@ namespace ProjectG.ApplicationLayer.Services
                 if (startingNow || isResetted)
                 {
                     result = await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.VK_T);
-                    await Task.Delay(Random.Shared.Next(50, 100));
+                    await Task.Delay(UtilityService.GenerateRandom(42, 108));
                     result = await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.VK_Y);
                     startingNow = false;
 
@@ -104,7 +104,7 @@ namespace ProjectG.ApplicationLayer.Services
 
                 if (StaticTSMButtons.RunCancelScan == null || StaticTSMButtons.RunPostScan == null)
                 {
-                    await Task.Delay(500);
+                    await Task.Delay(UtilityService.GenerateRandom(380, 651));
                     await ScreenService.CaptureScreen(); //
                     result = await DetectService.DetectAHMainMenu();
 
@@ -342,7 +342,7 @@ namespace ProjectG.ApplicationLayer.Services
         {
             try
             {
-                await Task.Delay(1000);
+                await Task.Delay(UtilityService.GenerateRandom(820, 1181));
 
                 if (StaticTSMButtons.OpenAllMailButton == null)
                     result = await DetectService.DetectMailBoxMenu();

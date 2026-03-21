@@ -1,4 +1,4 @@
-﻿using ProjectG.ApplicationLayer.Enums;
+using ProjectG.ApplicationLayer.Enums;
 using ProjectG.DomainLayer.Entities.Concrete;
 using ProjectG.InfrastructureLayer.Services;
 using System;
@@ -32,7 +32,7 @@ namespace ProjectG.ApplicationLayer.Services
                        if (res)
                            return true;
 
-                       await Task.Delay(500); // 0.5 saniye bekle
+                       await Task.Delay(UtilityService.GenerateRandom(380, 651)); // ~0.5 saniye, jitter
                    }
 
                    return false; // 20 saniye dolmadan doğru sonuç bulunamadı
@@ -60,7 +60,7 @@ namespace ProjectG.ApplicationLayer.Services
                     if (res)
                         return true;
 
-                    await Task.Delay(500); // 0.5 saniye bekle
+                    await Task.Delay(UtilityService.GenerateRandom(380, 651)); // ~0.5 saniye, jitter
                 }
 
                 return false; // 20 saniye dolmadan doğru sonuç bulunamadı

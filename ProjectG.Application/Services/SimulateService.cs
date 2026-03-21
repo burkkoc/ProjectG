@@ -88,8 +88,8 @@ namespace ProjectG.ApplicationLayer.Services
                 if (bounds.Width <= 0 || bounds.Height <= 0)
                     return false;
 
-                int rnd1 = UtilityService.GenerateRandom(bounds.X, bounds.X + bounds.Width);
-                int rnd2 = UtilityService.GenerateRandom(bounds.Y, bounds.Y + bounds.Height);
+                int rnd1 = UtilityService.RandomBiasedTowardCenterInRange(bounds.X, bounds.X + bounds.Width);
+                int rnd2 = UtilityService.RandomBiasedTowardCenterInRange(bounds.Y, bounds.Y + bounds.Height);
                 int absoluteX = ScreenService.CalculateAbsolutePositionX(rnd1, UserInput.ScreenResolutionX);
                 int absoluteY = ScreenService.CalculateAbsolutePositionY(rnd2, UserInput.ScreenResolutionY);
                 int sleepMs = UtilityService.GenerateRandom(minSleepMs, maxSleepMs + 1);
@@ -119,9 +119,9 @@ namespace ProjectG.ApplicationLayer.Services
             if (!await PixelProcessService.IsClickable(tsmButton))
                 return false;
             await MouseMove(tsmButton, UtilityService.GenerateRandom(500, 1000));
-            _inputSimulator.Mouse.Sleep(UtilityService.GenerateRandom(70, 100)).LeftButtonDown().Sleep(UtilityService.GenerateRandom(100, 200)).LeftButtonUp().Sleep(500);
+            _inputSimulator.Mouse.Sleep(UtilityService.GenerateRandom(70, 100)).LeftButtonDown().Sleep(UtilityService.GenerateRandom(100, 200)).LeftButtonUp().Sleep(UtilityService.GenerateRandom(400, 651));
             await MouseMove(100, tsmButton.ButtonContainer);
-            await Task.Delay(200);
+            await Task.Delay(UtilityService.GenerateRandom(120, 321));
             return true;
 
         }
@@ -136,8 +136,8 @@ namespace ProjectG.ApplicationLayer.Services
                 return await PixelProcessService.ScreenRegionFullyMatchesSavedReferenceAsync(cornerRegion, Paths.MailBoxCornerReferencePath);
             }
 
-            int rnd1 = UtilityService.GenerateRandom(rec.X, rec.X + rec.Width);
-            int rnd2 = UtilityService.GenerateRandom(rec.Y, rec.Y + rec.Height);
+            int rnd1 = UtilityService.RandomBiasedTowardCenterInRange(rec.X, rec.X + rec.Width);
+            int rnd2 = UtilityService.RandomBiasedTowardCenterInRange(rec.Y, rec.Y + rec.Height);
             int absX = ScreenService.CalculateAbsolutePositionX(rnd1, UserInput.ScreenResolutionX);
             int absY = ScreenService.CalculateAbsolutePositionY(rnd2, UserInput.ScreenResolutionY);
             _inputSimulator.Mouse.MoveMouseTo(absX, absY);
@@ -161,8 +161,8 @@ namespace ProjectG.ApplicationLayer.Services
                 return false;
             }
 
-            _inputSimulator.Mouse.Sleep(UtilityService.GenerateRandom(70, 100)).LeftButtonDown().Sleep(UtilityService.GenerateRandom(100, 200)).LeftButtonUp().Sleep(500);
-            await Task.Delay(200);
+            _inputSimulator.Mouse.Sleep(UtilityService.GenerateRandom(70, 100)).LeftButtonDown().Sleep(UtilityService.GenerateRandom(100, 200)).LeftButtonUp().Sleep(UtilityService.GenerateRandom(400, 651));
+            await Task.Delay(UtilityService.GenerateRandom(120, 321));
             return true;
         }
 
