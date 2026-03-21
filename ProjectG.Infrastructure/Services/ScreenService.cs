@@ -1,4 +1,4 @@
-﻿using AForge.Imaging.Filters;
+using AForge.Imaging.Filters;
 using ProjectG.ApplicationLayer.Enums;
 using ProjectG.DomainLayer.Entities.Concrete;
 using ProjectG.DomainLayer.Entities.Enums;
@@ -174,6 +174,87 @@ namespace ProjectG.InfrastructureLayer.Services
                     }
                     bitmap.Dispose();
 
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            });
+        }
+
+        /// <summary>Ham piksel verisi; OCR ön işlemi uygulanmaz. Çağıran bitmap'i dispose etmeli.</summary>
+        public static Bitmap? CaptureRegionToBitmap(Rectangle captureRectangle)
+        {
+            try
+            {
+                if (captureRectangle.Width <= 0 || captureRectangle.Height <= 0)
+                    return null;
+
+                Bitmap bitmap = new Bitmap(captureRectangle.Width, captureRectangle.Height);
+                using (Graphics g = Graphics.FromImage(bitmap))
+                {
+                    nint hdcSrc = GetWindowDC(IntPtr.Zero);
+                    nint hdcDest = g.GetHdc();
+                    try
+                    {
+                        BitBlt(hdcDest, 0, 0, captureRectangle.Width, captureRectangle.Height, hdcSrc, captureRectangle.X, captureRectangle.Y, SRCCOPY);
+                    }
+                    finally
+                    {
+                        g.ReleaseHdc(hdcDest);
+                        ReleaseDC(IntPtr.Zero, hdcSrc);
+                    }
+                }
+
+                return bitmap;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Ekranın sağ kenarında verilen sütunda (X) alttan üste tarar; RGB tam (0,0,0) olan ilk pikselin ekran Y değerini döner; yoksa -1.
+        /// </summary>
+        public static int FindFirstPureBlackPixelYFromBottom(int columnScreenX, int screenWidth, int screenHeight)
+        {
+            if (screenHeight <= 0 || columnScreenX < 0 || columnScreenX >= screenWidth)
+                return -1;
+
+            using Bitmap? strip = CaptureRegionToBitmap(new Rectangle(columnScreenX, 0, 1, screenHeight));
+            if (strip is null)
+                return -1;
+
+            for (int y = screenHeight - 1; y >= 0; y--)
+            {
+                Color c = strip.GetPixel(0, y);
+                if (c.R == 0 && c.G == 0 && c.B == 0)
+                    return y;
+            }
+
+            return -1;
+        }
+
+        public static async Task<bool> CaptureRegionToFile(Rectangle captureRectangle, string filePath)
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    using Bitmap? bitmap = CaptureRegionToBitmap(captureRectangle);
+                    if (bitmap is null)
+                        return false;
+
+                    string? dir = Path.GetDirectoryName(filePath);
+                    if (!string.IsNullOrEmpty(dir))
+                        Directory.CreateDirectory(dir);
+
+                    if (File.Exists(filePath))
+                        File.Delete(filePath);
+
+                    bitmap.Save(filePath, ImageFormat.Png);
                     return true;
                 }
                 catch

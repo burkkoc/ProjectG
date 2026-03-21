@@ -1,4 +1,4 @@
-﻿using ProjectG.ApplicationLayer.Enums;
+using ProjectG.ApplicationLayer.Enums;
 using ProjectG.DomainLayer.Entities.Concrete;
 using ProjectG.DomainLayer.Entities.Enums;
 using ProjectG.InfrastructureLayer.Services;
@@ -34,8 +34,8 @@ namespace ProjectG.ApplicationLayer.Services
             {
                 int rnd1 = 0;
                 int rnd2 = 0;
-                Rectangle ahBorder = new Rectangle(0,0,0,0);
-                Rectangle mailBorder = new Rectangle(0,0,0,0);
+                Rectangle ahBorder = new Rectangle(0, 0, 0, 0);
+                Rectangle mailBorder = new Rectangle(0, 0, 0, 0);
                 switch (buttonContainer)
                 {
                     case ButtonContainer.AH:
@@ -49,11 +49,11 @@ namespace ProjectG.ApplicationLayer.Services
                         } while (rnd1 > ahBorder.X && rnd1 < ahBorder.X + ahBorder.Width);
                         do
                         {
-                            rnd2 = UtilityService.GenerateRandom(100, UserInput.ScreenResolutionY-100);
+                            rnd2 = UtilityService.GenerateRandom(100, UserInput.ScreenResolutionY - 100);
                         } while (rnd2 > ahBorder.Y && rnd2 < ahBorder.Y + ahBorder.Height);
                         break;
                     case ButtonContainer.MailBox:
-                        if(TSMWindow.MailBoxBorder != null)
+                        if (TSMWindow.MailBoxBorder != null)
                             mailBorder = (Rectangle)TSMWindow.MailBoxBorder;
                         do
                         {
@@ -61,7 +61,7 @@ namespace ProjectG.ApplicationLayer.Services
                         } while (rnd1 > mailBorder.X && rnd1 < mailBorder.X + mailBorder.Width);
                         do
                         {
-                            rnd2 = UtilityService.GenerateRandom(100, UserInput.ScreenResolutionY-100);
+                            rnd2 = UtilityService.GenerateRandom(100, UserInput.ScreenResolutionY - 100);
                         } while (rnd2 > mailBorder.Y && rnd2 < mailBorder.Y + mailBorder.Height);
                         break;
                     default:
@@ -74,6 +74,27 @@ namespace ProjectG.ApplicationLayer.Services
 
                 _inputSimulator.Mouse.Sleep(timeOutAsMilliseconds).MoveMouseTo(absoluteX, absoluteY);
 
+                return true;
+            });
+        }
+
+        /// <summary>
+        /// Dikdörtgen içinde rastgele bir noktaya gidilir; hareket öncesi <paramref name="minSleepMs"/>–<paramref name="maxSleepMs"/> arası gecikme uygulanır.
+        /// </summary>
+        public async Task<bool> MouseMove(Rectangle bounds, int minSleepMs, int maxSleepMs)
+        {
+            return await Task.Run(() =>
+            {
+                if (bounds.Width <= 0 || bounds.Height <= 0)
+                    return false;
+
+                int rnd1 = UtilityService.GenerateRandom(bounds.X, bounds.X + bounds.Width);
+                int rnd2 = UtilityService.GenerateRandom(bounds.Y, bounds.Y + bounds.Height);
+                int absoluteX = ScreenService.CalculateAbsolutePositionX(rnd1, UserInput.ScreenResolutionX);
+                int absoluteY = ScreenService.CalculateAbsolutePositionY(rnd2, UserInput.ScreenResolutionY);
+                int sleepMs = UtilityService.GenerateRandom(minSleepMs, maxSleepMs + 1);
+
+                _inputSimulator.Mouse.Sleep(sleepMs).MoveMouseTo(absoluteX, absoluteY);
                 return true;
             });
         }
@@ -98,7 +119,7 @@ namespace ProjectG.ApplicationLayer.Services
             if (!await PixelProcessService.IsClickable(tsmButton))
                 return false;
             await MouseMove(tsmButton, UtilityService.GenerateRandom(500, 1000));
-            _inputSimulator.Mouse.Sleep(UtilityService.GenerateRandom(70, 100)).LeftButtonDown().Sleep(UtilityService.GenerateRandom(100,200)).LeftButtonUp().Sleep(500);
+            _inputSimulator.Mouse.Sleep(UtilityService.GenerateRandom(70, 100)).LeftButtonDown().Sleep(UtilityService.GenerateRandom(100, 200)).LeftButtonUp().Sleep(500);
             await MouseMove(100, tsmButton.ButtonContainer);
             await Task.Delay(200);
             return true;
@@ -107,32 +128,42 @@ namespace ProjectG.ApplicationLayer.Services
 
         public async Task<bool> MouseClick(Rectangle rec)
         {
-            bool result;
-            int i = 0;
-            do
+            async Task<bool> CompareMailboxCornerFullMatchAsync()
             {
-                int rnd1 = UtilityService.GenerateRandom(rec.X, rec.X + rec.Width);
-                int rnd2 = UtilityService.GenerateRandom(rec.Y, rec.Y + rec.Height);
-                int absX = ScreenService.CalculateAbsolutePositionX(rnd1, UserInput.ScreenResolutionX);
-                int absY = ScreenService.CalculateAbsolutePositionY(rnd2, UserInput.ScreenResolutionY);
-
-                _inputSimulator.Mouse.MoveMouseTo(absX, absY);
-                await Task.Delay(2000);
-                result = await ScreenService.CapturePartialScreen(new Rectangle(UserInput.ScreenResolutionX - 150, UserInput.ScreenResolutionY - 150, 150, 125));
-                
-
-                if (result)
-                    result = await TesseractService.IsTextExist(SearchTerms.MailBoxWords, Paths.MailBoxTextImagePath);
-
-                i++;
+                var cornerRegion = MailBoxCornerCalibration.GetBlackAnchoredCornerRegion();
+                if (cornerRegion.Width <= 0 || cornerRegion.Height <= 0)
+                    return false;
+                return await PixelProcessService.ScreenRegionFullyMatchesSavedReferenceAsync(cornerRegion, Paths.MailBoxCornerReferencePath);
             }
-            while (!result || i == 10);
 
-            _inputSimulator.Mouse.Sleep(UtilityService.GenerateRandom(70, 100)).LeftButtonDown().Sleep(UtilityService.GenerateRandom(100,200)).LeftButtonUp().Sleep(500);
-            if (result)
-                return true;
-            else return false;
+            int rnd1 = UtilityService.GenerateRandom(rec.X, rec.X + rec.Width);
+            int rnd2 = UtilityService.GenerateRandom(rec.Y, rec.Y + rec.Height);
+            int absX = ScreenService.CalculateAbsolutePositionX(rnd1, UserInput.ScreenResolutionX);
+            int absY = ScreenService.CalculateAbsolutePositionY(rnd2, UserInput.ScreenResolutionY);
+            _inputSimulator.Mouse.MoveMouseTo(absX, absY);
+            await Task.Delay(UtilityService.GenerateRandom(1800, 2201));
 
+            bool result = await CompareMailboxCornerFullMatchAsync();
+
+            if (!result)
+            {
+                for (int w = 0; w < 10 && !result; w++)
+                {
+                    await MouseMove(rec, 90, 240);
+                    await Task.Delay(UtilityService.GenerateRandom(380, 720));
+                    result = await CompareMailboxCornerFullMatchAsync();
+                }
+            }
+
+            if (!result)
+            {
+                AppSettings.State = State.OnCycleDowntime;
+                return false;
+            }
+
+            _inputSimulator.Mouse.Sleep(UtilityService.GenerateRandom(70, 100)).LeftButtonDown().Sleep(UtilityService.GenerateRandom(100, 200)).LeftButtonUp().Sleep(500);
+            await Task.Delay(200);
+            return true;
         }
 
         public async Task<bool> SendMacroKey(VirtualKeyCode vkCode)

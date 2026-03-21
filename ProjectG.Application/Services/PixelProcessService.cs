@@ -1,4 +1,4 @@
-﻿using AForge.Imaging.Filters;
+using AForge.Imaging.Filters;
 using ProjectG.ApplicationLayer.Enums;
 using ProjectG.DomainLayer.Entities.Concrete;
 using ProjectG.DomainLayer.Entities.Concrete.Statics;
@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -386,8 +387,125 @@ namespace ProjectG.ApplicationLayer.Services
             return screenPixel.GetPixel(0, 0);
         }
 
+        /// <summary>
+        /// Ekran bölgesini Z ile kaydedilen referans PNG ile karşılaştırır; aynı piksel oranı <paramref name="minimumMatchPercent"/> üzerindeyse true.
+        /// </summary>
+        public static async Task<bool> ScreenRegionMatchesSavedReferenceAsync(Rectangle screenRegion, string referenceImagePath, double minimumMatchPercent = 90.0)
+        {
+            return await Task.Run(() =>
+            {
+                if (string.IsNullOrWhiteSpace(referenceImagePath) || !File.Exists(referenceImagePath))
+                    return false;
 
+                using Bitmap? current = ScreenService.CaptureRegionToBitmap(screenRegion);
+                if (current is null)
+                    return false;
 
+                using Bitmap loadedRef = new Bitmap(referenceImagePath);
+                if (loadedRef.Width != current.Width || loadedRef.Height != current.Height)
+                    return false;
+
+                using Bitmap refArgb = loadedRef.Clone(new Rectangle(0, 0, loadedRef.Width, loadedRef.Height), PixelFormat.Format32bppArgb);
+                using Bitmap curArgb = current.Clone(new Rectangle(0, 0, current.Width, current.Height), PixelFormat.Format32bppArgb);
+
+                double percent = ComputeIdenticalPixelPercentArgb(refArgb, curArgb);
+                return percent >= minimumMatchPercent;
+            });
+        }
+
+        /// <summary>
+        /// Referans ile ekran bölgesi piksel piksel birebir aynı mı (yüzde 100).
+        /// </summary>
+        public static async Task<bool> ScreenRegionFullyMatchesSavedReferenceAsync(Rectangle screenRegion, string referenceImagePath)
+        {
+            return await Task.Run(() =>
+            {
+                if (string.IsNullOrWhiteSpace(referenceImagePath) || !File.Exists(referenceImagePath))
+                    return false;
+
+                using Bitmap? current = ScreenService.CaptureRegionToBitmap(screenRegion);
+                if (current is null)
+                    return false;
+
+                using Bitmap loadedRef = new Bitmap(referenceImagePath);
+                if (loadedRef.Width != current.Width || loadedRef.Height != current.Height)
+                    return false;
+
+                using Bitmap refArgb = loadedRef.Clone(new Rectangle(0, 0, loadedRef.Width, loadedRef.Height), PixelFormat.Format32bppArgb);
+                using Bitmap curArgb = current.Clone(new Rectangle(0, 0, current.Width, current.Height), PixelFormat.Format32bppArgb);
+
+                return AreBitmapsFullyIdenticalArgb(refArgb, curArgb);
+            });
+        }
+
+        static bool AreBitmapsFullyIdenticalArgb(Bitmap a, Bitmap b)
+        {
+            if (a.Width != b.Width || a.Height != b.Height)
+                return false;
+
+            var rect = new Rectangle(0, 0, a.Width, a.Height);
+            BitmapData da = a.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            BitmapData db = b.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            try
+            {
+                int stride = da.Stride;
+                int w = a.Width;
+                int h = a.Height;
+
+                for (int y = 0; y < h; y++)
+                {
+                    int row = y * stride;
+                    for (int x = 0; x < w; x++)
+                    {
+                        int offset = row + x * 4;
+                        if (Marshal.ReadInt32(da.Scan0, offset) != Marshal.ReadInt32(db.Scan0, offset))
+                            return false;
+                    }
+                }
+
+                return true;
+            }
+            finally
+            {
+                a.UnlockBits(da);
+                b.UnlockBits(db);
+            }
+        }
+
+        static double ComputeIdenticalPixelPercentArgb(Bitmap a, Bitmap b)
+        {
+            var rect = new Rectangle(0, 0, a.Width, a.Height);
+            BitmapData da = a.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            BitmapData db = b.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            try
+            {
+                int stride = da.Stride;
+                int w = a.Width;
+                int h = a.Height;
+                int match = 0;
+                int total = w * h;
+
+                for (int y = 0; y < h; y++)
+                {
+                    int row = y * stride;
+                    for (int x = 0; x < w; x++)
+                    {
+                        int offset = row + x * 4;
+                        int pa = Marshal.ReadInt32(da.Scan0, offset);
+                        int pb = Marshal.ReadInt32(db.Scan0, offset);
+                        if (pa == pb)
+                            match++;
+                    }
+                }
+
+                return total == 0 ? 0 : 100.0 * match / total;
+            }
+            finally
+            {
+                a.UnlockBits(da);
+                b.UnlockBits(db);
+            }
+        }
 
     }
 }

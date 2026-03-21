@@ -36,6 +36,7 @@ namespace ProjectG
             Paths.GeneralImagePath = Path.Combine(Application.StartupPath, "Images", "General.png");
             Paths.ChatWindowImagePath = Path.Combine(Application.StartupPath, "Images", "Chat.png");
             Paths.MailBoxTextImagePath = Path.Combine(Application.StartupPath, "Images", "MailBoxText.png");
+            Paths.MailBoxCornerReferencePath = Path.Combine(Application.StartupPath, "MailBoxCornerReference.png");
             //Paths.TesseractPath = Path.Combine(Application.StartupPath, "Tesseract-OCR","tessdata");
             //TimerDowntime.Stop();
 
@@ -110,6 +111,8 @@ namespace ProjectG
                 btnStart.Enabled = true;
                 AppSettings.MailBoxPosition = new Rectangle(x, y, 60, 60);
                 btnStart.Text = "Start";
+
+                await MailBoxCornerCalibration.SaveReferenceSnapshotAsync();
 
                 //_macroService.CancelTask();
             }

@@ -1,4 +1,4 @@
-﻿using ProjectG.ApplicationLayer.Enums;
+using ProjectG.ApplicationLayer.Enums;
 using ProjectG.DomainLayer.Entities.Concrete;
 using ProjectG.DomainLayer.Entities.Enums;
 using System;

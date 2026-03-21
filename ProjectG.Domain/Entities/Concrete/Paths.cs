@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,6 +16,9 @@ namespace ProjectG.DomainLayer.Entities.Concrete
         public static string ChatWindowImagePath {  get; set; } = string.Empty;
 
         public static string MailBoxTextImagePath { get; set; } = string.Empty;
+
+        /// <summary>250x250 sağ alt köşe referans görüntüsü (Z ile kaydedilir); OCR yerine piksel eşleştirmede kullanılır.</summary>
+        public static string MailBoxCornerReferencePath { get; set; } = string.Empty;
 
         //public static string MailBoxTextImagePath2 { get; set; } = string.Empty;
         public static string TesseractPath { get; set; } = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Tesseract-OCR", "tessdata");
