@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -15,11 +15,11 @@ namespace ProjectG.ApplicationLayer.Services
     {
         public static Dictionary<string, Rectangle> FindTextLocation(string[] searchTexts, string imagePath)
         {
-            //int i = 0;
-            Bitmap bmp = new Bitmap(imagePath);
             Dictionary<string, Rectangle> foundedButtons = new Dictionary<string, Rectangle>();
-            using (var engine = new TesseractEngine(Paths.TesseractPath, "eng", EngineMode.Default))
+            using (Bitmap bmp = new Bitmap(imagePath))
             {
+                using (var engine = new TesseractEngine(Paths.TesseractPath, "eng", EngineMode.Default))
+                {
                 using (var image = Pix.LoadFromFile(imagePath))
                 {
 
@@ -76,11 +76,11 @@ namespace ProjectG.ApplicationLayer.Services
                                 }
 
                             } while (iterator.Next(PageIteratorLevel.Word));
-                            bmp.Dispose();
                             return foundedButtons;
                         }
                     }
 
+                }
                 }
             }
         }

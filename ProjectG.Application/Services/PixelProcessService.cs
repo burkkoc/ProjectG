@@ -337,54 +337,42 @@ namespace ProjectG.ApplicationLayer.Services
             Color? passiveColor = null;
             int positionX = tsmButton.X;
             int positionY = tsmButton.Y;
-            int i = 0;
-            Bitmap screenPixel;
-            do
+            for (int i = 0; i < 90; i++)
             {
                 await Task.Delay(333);
-                screenPixel = new Bitmap(1, 1);
-                using (Graphics g = Graphics.FromImage(screenPixel))
+                using (Bitmap screenPixel = new Bitmap(1, 1))
                 {
-                    if (isActive)
-                        g.CopyFromScreen(positionX, positionY, 0, 0, new Size(1, 1));
-                    else
+                    using (Graphics g = Graphics.FromImage(screenPixel))
                     {
-                        g.CopyFromScreen(positionX - 10, positionY, 0, 0, new Size(1, 1));
-                        passiveColor = screenPixel.GetPixel(0, 0);
-                        g.CopyFromScreen(positionX, positionY, 0, 0, new Size(1, 1));
+                        if (isActive)
+                            g.CopyFromScreen(positionX, positionY, 0, 0, new Size(1, 1));
+                        else
+                        {
+                            g.CopyFromScreen(positionX - 10, positionY, 0, 0, new Size(1, 1));
+                            passiveColor = screenPixel.GetPixel(0, 0);
+                            g.CopyFromScreen(positionX, positionY, 0, 0, new Size(1, 1));
+                        }
                     }
 
+                    Color color = screenPixel.GetPixel(0, 0);
+                    if (tsmButton.BackgroundColor == color)
+                        return true;
+                    if (passiveColor != null && PixelProcessService.IsColorMatch((Color)passiveColor, color) && !isActive)
+                        return true;
                 }
-                Color color = screenPixel.GetPixel(0, 0);
-                //if (AppSettings.ActiveButtonColor != null && PixelProcessService.IsColorMatch((Color)AppSettings.ActiveButtonColor, color) && isActive)
-                if (tsmButton.BackgroundColor == color)
-                {
-                    screenPixel.Dispose();
-
-                    return true;
-                }
-                else if (passiveColor != null && PixelProcessService.IsColorMatch((Color)passiveColor, color) && !isActive)
-                {
-                    screenPixel.Dispose();
-                    return true;
-                }
-                i++;
-            } while (i < 90);
-            screenPixel.Dispose();
+            }
 
             return false;
         }
 
         public static Color GetBackgroundColor(int x, int y)
         {
-            Bitmap screenPixel = new Bitmap(1, 1);
-            using (Graphics g = Graphics.FromImage(screenPixel))
+            using (Bitmap screenPixel = new Bitmap(1, 1))
             {
-                g.CopyFromScreen(x, y, 0, 0, new Size(1, 1));
-
-
+                using (Graphics g = Graphics.FromImage(screenPixel))
+                    g.CopyFromScreen(x, y, 0, 0, new Size(1, 1));
+                return screenPixel.GetPixel(0, 0);
             }
-            return screenPixel.GetPixel(0, 0);
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
-﻿using ProjectG.DomainLayer.Entities.Concrete;
+using ProjectG.DomainLayer.Entities.Concrete;
 using ProjectG.DomainLayer.Entities.Concrete.Statics;
 using ProjectG.DomainLayer.Entities.Enums;
 using ProjectG.InfrastructureLayer.Services;
@@ -57,7 +57,7 @@ namespace ProjectG.ApplicationLayer.Services
                 if (startingNow || isResetted)
                 {
                     result = await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.VK_T);
-                    await Task.Delay(new Random().Next(50, 100));
+                    await Task.Delay(Random.Shared.Next(50, 100));
                     result = await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.VK_Y);
                     startingNow = false;
 

@@ -18,7 +18,7 @@ namespace ProjectG.ApplicationLayer.Services
         {
             if (numberStart > numberEnd)
                 return 0;
-            return new Random().Next(numberStart, numberEnd);
+            return Random.Shared.Next(numberStart, numberEnd);
         }
 
         public static bool SetScreenResolution(int screenResX, int screenResY)
@@ -73,13 +73,13 @@ namespace ProjectG.ApplicationLayer.Services
             switch (AppSettings.CycleDowntime)
             {
                 case CycleDowntime.Short:
-                    return new Random().Next(15000, 25000);
+                    return Random.Shared.Next(15000, 25000);
                 case CycleDowntime.ShortMedium:
-                    return new Random().Next(35000, 65000);
+                    return Random.Shared.Next(35000, 65000);
                 case CycleDowntime.Medium:
-                    return new Random().Next(55000, 90000);
+                    return Random.Shared.Next(55000, 90000);
                 case CycleDowntime.Long:
-                    return new Random().Next(120000, 180000);
+                    return Random.Shared.Next(120000, 180000);
             }
             return 0;
         }
