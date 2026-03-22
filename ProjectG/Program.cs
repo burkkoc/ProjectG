@@ -21,6 +21,7 @@ namespace ProjectG.PresentationLayer
             Application.SetCompatibleTextRenderingDefault(false);
 
             Application.ApplicationExit += (_, _) => InternetConnectivityMonitor.Stop();
+            InternetConnectivityMonitor.ApplyNtfyUrls(NtfySettingsStore.Load().NtfyNotifyTopicUrl);
             InternetConnectivityMonitor.Start();
 
             Application.Run(new PG(new MacroService()));

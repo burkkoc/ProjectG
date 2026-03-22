@@ -1,51 +1,57 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+using ProjectG.ApplicationLayer.Services;
 
 namespace ProjectG.PresentationLayer
 {
     public partial class SettingsForm : Form
     {
-        PG _pg;
-        public SettingsForm(PG pg)
+        public SettingsForm()
         {
-            _pg = pg;
             InitializeComponent();
         }
 
-        private void btnDone_Click(object sender, EventArgs e)
+        void SettingsForm_Load(object? sender, EventArgs e)
         {
-            Random random = new Random();
+            var s = NtfySettingsStore.Load();
+            txtNtfyNotifyUrl.Text = s.NtfyNotifyTopicUrl;
+        }
 
-            // Yeni bir AppSettings nesnesi oluştur
-            //var settings = new AppSettings
-            //{
-            //    ProfileName = "Profile" + random.Next(1, 1000), // Rastgele bir profil adı
-            //    CycleDowntime = new int[] { random.Next(0, 60), random.Next(0, 60) }, // 0-60 saniye arası
-            //    AHShowsUpDowntime = new int[] { random.Next(0, 60), random.Next(0, 60) },
-            //    PostOrCancelDowntime = new int[] { random.Next(0, 60), random.Next(0, 60) },
-            //    PostOrCancelDoneDowntime = new int[] { random.Next(0, 60), random.Next(0, 60) },
-            //    AHCloseRandomize = random.Next(0, 2) == 1, // Rastgele true/false
-            //    SendGameToTheBackground = random.Next(0, 2) == 1,
-            //    SendGameToTheBackgroundAxis = new int[] { random.Next(0, 1920), random.Next(0, 1080) }, // 1920x1080 ekran çözünürlüğü
-            //    MailBoxOpenRandomize = random.Next(0, 2) == 1,
-            //    MailBoxRandomizedPossibility = random.Next(0, 100), // 0-100 arasında bir olasılık
-            //    MailBoxShowsUpDowntime = new int[] { random.Next(0, 60), random.Next(0, 60) },
-            //    MailBoxCloseRandomize = random.Next(0, 2) == 1
-            //};
+        void btnSave_Click(object? sender, EventArgs e)
+        {
+            var url = txtNtfyNotifyUrl.Text.Trim();
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
+                MessageBox.Show(
+                    "Geçerli bir http(s) adresi girin (ör. https://ntfy.sh/konu-adiniz).",
+                    "Project G",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
 
-            //ConfigurationService configurationService = new ConfigurationService();
-            //configurationService.SaveSettings(settings);
-            //configurationService.GetKeys();
+            var path = uri.AbsolutePath.Trim('/');
+            if (string.IsNullOrEmpty(path))
+            {
+                MessageBox.Show(
+                    "Konu yolu gerekli (ör. https://ntfy.sh/benim-konum).",
+                    "Project G",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
 
-            this.Hide();
-            _pg.ShowDialog();
+            var normalized = uri.AbsoluteUri.TrimEnd('/');
+            var settings = new NtfyUserSettings { NtfyNotifyTopicUrl = normalized };
+            NtfySettingsStore.Save(settings);
+            InternetConnectivityMonitor.ApplyNtfyUrls(normalized);
+            DialogResult = DialogResult.OK;
+            Close();
+        }
+
+        void btnCancel_Click(object? sender, EventArgs e)
+        {
+            DialogResult = DialogResult.Cancel;
+            Close();
         }
     }
 }

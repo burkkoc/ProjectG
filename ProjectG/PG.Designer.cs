@@ -49,6 +49,7 @@ namespace ProjectG
             groupBoxInternet = new GroupBox();
             LblInternetStatus = new Label();
             TimerInternetUi = new System.Windows.Forms.Timer(components);
+            btnSettings = new Button();
             gBoxCycleDowntime.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)numericCustomDowntimeMaxSec).BeginInit();
             ((System.ComponentModel.ISupportInitialize)numericCustomDowntimeMinSec).BeginInit();
@@ -276,11 +277,24 @@ namespace ProjectG
             TimerInternetUi.Interval = 1000;
             TimerInternetUi.Tick += TimerInternetUi_Tick;
             // 
+            // btnSettings
+            // 
+            btnSettings.Font = new Font("Verdana", 8.25F);
+            btnSettings.ForeColor = Color.FromArgb(64, 64, 64);
+            btnSettings.Location = new Point(385, 100);
+            btnSettings.Name = "btnSettings";
+            btnSettings.Size = new Size(70, 28);
+            btnSettings.TabIndex = 11;
+            btnSettings.Text = "Ayarlar";
+            btnSettings.UseVisualStyleBackColor = true;
+            btnSettings.Click += btnSettings_Click;
+            // 
             // PG
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(465, 138);
+            Controls.Add(btnSettings);
             Controls.Add(cBoxDualClient);
             Controls.Add(groupBoxInternet);
             Controls.Add(groupBox2);
@@ -328,5 +342,6 @@ namespace ProjectG
         private GroupBox groupBoxInternet;
         private Label LblInternetStatus;
         private System.Windows.Forms.Timer TimerInternetUi;
+        private Button btnSettings;
     }
 }

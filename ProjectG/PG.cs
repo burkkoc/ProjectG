@@ -10,11 +10,9 @@ namespace ProjectG
     {
         private readonly MacroService _macroService;
         private UIHelper _uiHelper;
-        private SettingsForm _settingsForm;
         public PG(MacroService macroService)
         {
             InitializeComponent();
-            _settingsForm = new SettingsForm(this);
             _macroService = macroService;
             _uiHelper = new UIHelper(this);
             _uiHelper.Initiate();
@@ -114,11 +112,15 @@ namespace ProjectG
             }
         }
 
-        //private void btnSettings_Click(object sender, EventArgs e)
-        //{
-        //    this.Hide();
-        //    _settingsForm.ShowDialog();
-        //}
+        void btnSettings_Click(object? sender, EventArgs e)
+        {
+            using var f = new SettingsForm();
+            f.StartPosition = FormStartPosition.Manual;
+            var b = Bounds;
+            f.Location = new Point(b.Left, b.Bottom + 4);
+            f.TopMost = true;
+            f.ShowDialog(this);
+        }
 
         private void ApplyCustomDowntimeFromUi()
         {

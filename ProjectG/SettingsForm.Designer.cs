@@ -1,16 +1,9 @@
-﻿namespace ProjectG.PresentationLayer
+namespace ProjectG.PresentationLayer
 {
     partial class SettingsForm
     {
-        /// <summary>
-        /// Required designer variable.
-        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        /// <summary>
-        /// Clean up any resources being used.
-        /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -22,38 +15,78 @@
 
         #region Windows Form Designer generated code
 
-        /// <summary>
-        /// Required method for Designer support - do not modify
-        /// the contents of this method with the code editor.
-        /// </summary>
         private void InitializeComponent()
         {
-            btnDone = new Button();
+            lblNtfyNotifyUrl = new Label();
+            txtNtfyNotifyUrl = new TextBox();
+            btnSave = new Button();
+            btnCancel = new Button();
             SuspendLayout();
-            // 
-            // btnDone
-            // 
-            btnDone.Location = new Point(722, 391);
-            btnDone.Name = "btnDone";
-            btnDone.Size = new Size(66, 47);
-            btnDone.TabIndex = 0;
-            btnDone.Text = "Done";
-            btnDone.UseVisualStyleBackColor = true;
-            btnDone.Click += btnDone_Click;
-            // 
+            //
+            // lblNtfyNotifyUrl
+            //
+            lblNtfyNotifyUrl.AutoSize = true;
+            lblNtfyNotifyUrl.Location = new Point(12, 15);
+            lblNtfyNotifyUrl.Name = "lblNtfyNotifyUrl";
+            lblNtfyNotifyUrl.Size = new Size(120, 15);
+            lblNtfyNotifyUrl.TabIndex = 0;
+            lblNtfyNotifyUrl.Text = "NTFY URL";
+            //
+            // txtNtfyNotifyUrl
+            //
+            txtNtfyNotifyUrl.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            txtNtfyNotifyUrl.Location = new Point(12, 33);
+            txtNtfyNotifyUrl.Name = "txtNtfyNotifyUrl";
+            txtNtfyNotifyUrl.Size = new Size(476, 23);
+            txtNtfyNotifyUrl.TabIndex = 1;
+            //
+            // btnSave
+            //
+            btnSave.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnSave.Location = new Point(332, 72);
+            btnSave.Name = "btnSave";
+            btnSave.Size = new Size(75, 28);
+            btnSave.TabIndex = 2;
+            btnSave.Text = "Kaydet";
+            btnSave.UseVisualStyleBackColor = true;
+            btnSave.Click += btnSave_Click;
+            //
+            // btnCancel
+            //
+            btnCancel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnCancel.Location = new Point(413, 72);
+            btnCancel.Name = "btnCancel";
+            btnCancel.Size = new Size(75, 28);
+            btnCancel.TabIndex = 3;
+            btnCancel.Text = "İptal";
+            btnCancel.UseVisualStyleBackColor = true;
+            btnCancel.Click += btnCancel_Click;
+            //
             // SettingsForm
-            // 
+            //
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
-            Controls.Add(btnDone);
+            ClientSize = new Size(500, 112);
+            Controls.Add(btnCancel);
+            Controls.Add(btnSave);
+            Controls.Add(txtNtfyNotifyUrl);
+            Controls.Add(lblNtfyNotifyUrl);
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
             Name = "SettingsForm";
-            Text = "SettingsForm";
+            StartPosition = FormStartPosition.Manual;
+            Text = "Ayarlar";
+            Load += SettingsForm_Load;
             ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
 
-        private Button btnDone;
+        private Label lblNtfyNotifyUrl;
+        private TextBox txtNtfyNotifyUrl;
+        private Button btnSave;
+        private Button btnCancel;
     }
 }
