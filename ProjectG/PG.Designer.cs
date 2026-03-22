@@ -1,4 +1,4 @@
-﻿namespace ProjectG
+namespace ProjectG
 {
     partial class PG
     {
@@ -31,8 +31,12 @@
             components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(PG));
             gBoxCycleDowntime = new GroupBox();
+            lblCustomDowntimeMax = new Label();
+            lblCustomDowntimeMin = new Label();
+            numericCustomDowntimeMaxSec = new NumericUpDown();
+            numericCustomDowntimeMinSec = new NumericUpDown();
             RadioShortMedium = new RadioButton();
-            RadioLong = new RadioButton();
+            RadioCustom = new RadioButton();
             RadioMedium = new RadioButton();
             RadioShort = new RadioButton();
             btnStart = new Button();
@@ -43,24 +47,76 @@
             LblState = new Label();
             cBoxDualClient = new CheckBox();
             gBoxCycleDowntime.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)numericCustomDowntimeMaxSec).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)numericCustomDowntimeMinSec).BeginInit();
             groupBox1.SuspendLayout();
             groupBox2.SuspendLayout();
             SuspendLayout();
             // 
             // gBoxCycleDowntime
             // 
+            gBoxCycleDowntime.Controls.Add(lblCustomDowntimeMax);
+            gBoxCycleDowntime.Controls.Add(lblCustomDowntimeMin);
+            gBoxCycleDowntime.Controls.Add(numericCustomDowntimeMaxSec);
+            gBoxCycleDowntime.Controls.Add(numericCustomDowntimeMinSec);
             gBoxCycleDowntime.Controls.Add(RadioShortMedium);
-            gBoxCycleDowntime.Controls.Add(RadioLong);
+            gBoxCycleDowntime.Controls.Add(RadioCustom);
             gBoxCycleDowntime.Controls.Add(RadioMedium);
             gBoxCycleDowntime.Controls.Add(RadioShort);
             gBoxCycleDowntime.Font = new Font("Verdana", 8.25F, FontStyle.Bold, GraphicsUnit.Point, 162);
             gBoxCycleDowntime.ForeColor = Color.Maroon;
             gBoxCycleDowntime.Location = new Point(5, 8);
             gBoxCycleDowntime.Name = "gBoxCycleDowntime";
-            gBoxCycleDowntime.Size = new Size(139, 86);
+            gBoxCycleDowntime.Size = new Size(200, 108);
             gBoxCycleDowntime.TabIndex = 2;
             gBoxCycleDowntime.TabStop = false;
             gBoxCycleDowntime.Text = "Cycle Downtime";
+            // 
+            // lblCustomDowntimeMax
+            // 
+            lblCustomDowntimeMax.AutoSize = true;
+            lblCustomDowntimeMax.Font = new Font("Verdana", 7.5F);
+            lblCustomDowntimeMax.ForeColor = Color.FromArgb(64, 64, 64);
+            lblCustomDowntimeMax.Location = new Point(89, 72);
+            lblCustomDowntimeMax.Name = "lblCustomDowntimeMax";
+            lblCustomDowntimeMax.Size = new Size(35, 12);
+            lblCustomDowntimeMax.TabIndex = 11;
+            lblCustomDowntimeMax.Text = "max:";
+            // 
+            // lblCustomDowntimeMin
+            // 
+            lblCustomDowntimeMin.AutoSize = true;
+            lblCustomDowntimeMin.Font = new Font("Verdana", 7.5F);
+            lblCustomDowntimeMin.ForeColor = Color.FromArgb(64, 64, 64);
+            lblCustomDowntimeMin.Location = new Point(6, 72);
+            lblCustomDowntimeMin.Name = "lblCustomDowntimeMin";
+            lblCustomDowntimeMin.Size = new Size(26, 12);
+            lblCustomDowntimeMin.TabIndex = 9;
+            lblCustomDowntimeMin.Text = "(s):";
+            // 
+            // numericCustomDowntimeMaxSec
+            // 
+            numericCustomDowntimeMaxSec.Font = new Font("Verdana", 8.25F);
+            numericCustomDowntimeMaxSec.Location = new Point(120, 69);
+            numericCustomDowntimeMaxSec.Maximum = new decimal(new int[] { 999, 0, 0, 0 });
+            numericCustomDowntimeMaxSec.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
+            numericCustomDowntimeMaxSec.Name = "numericCustomDowntimeMaxSec";
+            numericCustomDowntimeMaxSec.Size = new Size(44, 21);
+            numericCustomDowntimeMaxSec.TabIndex = 12;
+            numericCustomDowntimeMaxSec.TextAlign = HorizontalAlignment.Center;
+            numericCustomDowntimeMaxSec.Value = new decimal(new int[] { 999, 0, 0, 0 });
+            // 
+            // numericCustomDowntimeMinSec
+            // 
+            numericCustomDowntimeMinSec.Font = new Font("Verdana", 8.25F);
+            numericCustomDowntimeMinSec.Location = new Point(38, 69);
+            numericCustomDowntimeMinSec.Maximum = new decimal(new int[] { 999, 0, 0, 0 });
+            numericCustomDowntimeMinSec.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
+            numericCustomDowntimeMinSec.Name = "numericCustomDowntimeMinSec";
+            numericCustomDowntimeMinSec.Size = new Size(48, 21);
+            numericCustomDowntimeMinSec.TabIndex = 10;
+            numericCustomDowntimeMinSec.TextAlign = HorizontalAlignment.Center;
+            numericCustomDowntimeMinSec.Value = new decimal(new int[] { 1, 0, 0, 0 });
             // 
             // RadioShortMedium
             // 
@@ -74,17 +130,17 @@
             RadioShortMedium.Text = "35-65";
             RadioShortMedium.UseVisualStyleBackColor = true;
             // 
-            // RadioLong
+            // RadioCustom
             // 
-            RadioLong.AutoSize = true;
-            RadioLong.Font = new Font("Verdana", 8.25F);
-            RadioLong.ForeColor = Color.FromArgb(64, 64, 64);
-            RadioLong.Location = new Point(66, 50);
-            RadioLong.Name = "RadioLong";
-            RadioLong.Size = new Size(72, 17);
-            RadioLong.TabIndex = 7;
-            RadioLong.Text = "120-180";
-            RadioLong.UseVisualStyleBackColor = true;
+            RadioCustom.AutoSize = true;
+            RadioCustom.Font = new Font("Verdana", 8.25F);
+            RadioCustom.ForeColor = Color.FromArgb(64, 64, 64);
+            RadioCustom.Location = new Point(66, 50);
+            RadioCustom.Name = "RadioCustom";
+            RadioCustom.Size = new Size(69, 17);
+            RadioCustom.TabIndex = 7;
+            RadioCustom.Text = "Custom";
+            RadioCustom.UseVisualStyleBackColor = true;
             // 
             // RadioMedium
             // 
@@ -117,7 +173,7 @@
             btnStart.Enabled = false;
             btnStart.Font = new Font("Verdana", 9F);
             btnStart.ForeColor = Color.FromArgb(64, 64, 64);
-            btnStart.Location = new Point(327, 44);
+            btnStart.Location = new Point(385, 44);
             btnStart.Name = "btnStart";
             btnStart.Size = new Size(69, 50);
             btnStart.TabIndex = 5;
@@ -146,7 +202,7 @@
             groupBox1.Controls.Add(LblDowntime);
             groupBox1.Font = new Font("Verdana", 8.25F, FontStyle.Bold, GraphicsUnit.Point, 162);
             groupBox1.ForeColor = Color.Maroon;
-            groupBox1.Location = new Point(154, 55);
+            groupBox1.Location = new Point(215, 55);
             groupBox1.Name = "groupBox1";
             groupBox1.Size = new Size(167, 39);
             groupBox1.TabIndex = 7;
@@ -158,7 +214,7 @@
             groupBox2.Controls.Add(LblState);
             groupBox2.Font = new Font("Verdana", 8.25F, FontStyle.Bold, GraphicsUnit.Point, 162);
             groupBox2.ForeColor = Color.Maroon;
-            groupBox2.Location = new Point(154, 8);
+            groupBox2.Location = new Point(215, 8);
             groupBox2.Name = "groupBox2";
             groupBox2.Size = new Size(167, 39);
             groupBox2.TabIndex = 8;
@@ -179,18 +235,19 @@
             // cBoxDualClient
             // 
             cBoxDualClient.AutoSize = true;
-            cBoxDualClient.Location = new Point(327, 19);
+            cBoxDualClient.Location = new Point(385, 19);
             cBoxDualClient.Name = "cBoxDualClient";
             cBoxDualClient.Size = new Size(81, 19);
             cBoxDualClient.TabIndex = 9;
             cBoxDualClient.Text = "DualClient";
             cBoxDualClient.UseVisualStyleBackColor = true;
+            cBoxDualClient.Visible = false;
             // 
             // PG
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(409, 102);
+            ClientSize = new Size(465, 122);
             Controls.Add(cBoxDualClient);
             Controls.Add(groupBox2);
             Controls.Add(groupBox1);
@@ -208,6 +265,8 @@
             KeyDown += PG_KeyDown;
             gBoxCycleDowntime.ResumeLayout(false);
             gBoxCycleDowntime.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)numericCustomDowntimeMaxSec).EndInit();
+            ((System.ComponentModel.ISupportInitialize)numericCustomDowntimeMinSec).EndInit();
             groupBox1.ResumeLayout(false);
             groupBox2.ResumeLayout(false);
             ResumeLayout(false);
@@ -216,8 +275,12 @@
 
         #endregion
         private GroupBox gBoxCycleDowntime;
+        private Label lblCustomDowntimeMax;
+        private Label lblCustomDowntimeMin;
+        private NumericUpDown numericCustomDowntimeMaxSec;
+        private NumericUpDown numericCustomDowntimeMinSec;
         private RadioButton RadioShort;
-        private RadioButton RadioLong;
+        private RadioButton RadioCustom;
         private RadioButton RadioMedium;
         private Button btnStart;
         private RadioButton RadioShortMedium;

@@ -1,4 +1,4 @@
-﻿using ProjectG.DomainLayer.Entities.Enums;
+using ProjectG.DomainLayer.Entities.Enums;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -12,6 +12,9 @@ namespace ProjectG.DomainLayer.Entities.Concrete
     {
         public static string ProfileName { get; set; } = "Default";
         public static CycleDowntime CycleDowntime { get; set; } //Her döngü arası saniye tipinde beklenilecek süre
+
+        /// <summary>Özel (Custom) döngü arası rastgele bekleme aralığı, milisaniye [min, max].</summary>
+        public static int[] CustomCycleDowntimeMs { get; set; } = [120000, 180000];
 
         public static int[] AHShowsUpDowntime { get; set; } = [1, 10]; //AH açıldıktan sonra, sıradaki işlemle arasındaki süre
 

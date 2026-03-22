@@ -1,4 +1,4 @@
-﻿using ProjectG.ApplicationLayer.Services;
+using ProjectG.ApplicationLayer.Services;
 using ProjectG.DomainLayer.Entities.Concrete;
 using ProjectG.DomainLayer.Entities.Enums;
 using System;
@@ -81,7 +81,7 @@ namespace ProjectG.PresentationLayer.Services
             else if (_pg.radioBtnShortMedium.Checked)
                 AppSettings.CycleDowntime = CycleDowntime.ShortMedium;
             else
-                AppSettings.CycleDowntime = CycleDowntime.Long;
+                AppSettings.CycleDowntime = CycleDowntime.Custom;
 
 
         }

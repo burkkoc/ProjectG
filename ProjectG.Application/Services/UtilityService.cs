@@ -22,14 +22,17 @@ namespace ProjectG.ApplicationLayer.Services
         }
 
         /// <summary>
-        /// İki uniform örneğin ortalaması; aralık [minInclusive, exclusiveMax) içinde kalır, dağılım merkeze yakındır.
+        /// Dikdörtgen içi tıklama koordinatı. <paramref name="edgeLean"/> ile uçlara eğilim ayarlanır:
+        /// düşük değer iki uniformun ortalaması (merkeze yakın), yüksek değer min/max örnekleri (kenarlara yakın).
         /// </summary>
-        public static int RandomBiasedTowardCenterInRange(int minInclusive, int exclusiveMax)
+        public static int RandomClickCoordinateInRange(int minInclusive, int exclusiveMax, double edgeLean = 0.58)
         {
             if (minInclusive >= exclusiveMax)
                 return minInclusive;
             int a = Random.Shared.Next(minInclusive, exclusiveMax);
             int b = Random.Shared.Next(minInclusive, exclusiveMax);
+            if (Random.Shared.NextDouble() < edgeLean)
+                return Random.Shared.Next(0, 2) == 0 ? Math.Min(a, b) : Math.Max(a, b);
             return (a + b) / 2;
         }
 
@@ -90,8 +93,15 @@ namespace ProjectG.ApplicationLayer.Services
                     return Random.Shared.Next(35000, 65000);
                 case CycleDowntime.Medium:
                     return Random.Shared.Next(55000, 90000);
-                case CycleDowntime.Long:
-                    return Random.Shared.Next(120000, 180000);
+                case CycleDowntime.Custom:
+                {
+                    int[] r = AppSettings.CustomCycleDowntimeMs;
+                    if (r is null || r.Length < 2)
+                        return Random.Shared.Next(120000, 180001);
+                    int lo = Math.Max(1000, r[0]);
+                    int hi = Math.Max(lo + 1, r[1]);
+                    return Random.Shared.Next(lo, hi + 1);
+                }
             }
             return 0;
         }

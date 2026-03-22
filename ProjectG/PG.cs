@@ -1,12 +1,8 @@
-
-using ProjectG.ApplicationLayer.Enums;
 using ProjectG.ApplicationLayer.Services;
 using ProjectG.DomainLayer.Entities.Concrete;
 using ProjectG.DomainLayer.Entities.Concrete.Statics;
-using ProjectG.DomainLayer.Entities.Enums;
 using ProjectG.PresentationLayer;
 using ProjectG.PresentationLayer.Services;
-using System.Collections.Generic;
 
 namespace ProjectG
 {
@@ -50,7 +46,7 @@ namespace ProjectG
         //public Button buttonSettings => btnSettings;
         public RadioButton radioBtnShort => RadioShort;
         public RadioButton radioBtnMedium => RadioMedium;
-        public RadioButton radioBtnLong => RadioLong;
+        public RadioButton radioBtnCustom => RadioCustom;
         public RadioButton radioBtnShortMedium => RadioShortMedium;
 
 
@@ -124,24 +120,54 @@ namespace ProjectG
         //    _settingsForm.ShowDialog();
         //}
 
+        private void ApplyCustomDowntimeFromUi()
+        {
+            int minSec = (int)numericCustomDowntimeMinSec.Value;
+            int maxSec = (int)numericCustomDowntimeMaxSec.Value;
+            int maxAllowed = (int)numericCustomDowntimeMaxSec.Maximum;
+            int minAllowed = (int)numericCustomDowntimeMinSec.Minimum;
+            if (minSec >= maxSec)
+            {
+                maxSec = minSec + 1;
+                if (maxSec > maxAllowed)
+                {
+                    maxSec = maxAllowed;
+                    minSec = maxAllowed - 1;
+                    if (minSec < minAllowed)
+                        minSec = minAllowed;
+                    numericCustomDowntimeMinSec.Value = minSec;
+                }
+                numericCustomDowntimeMaxSec.Value = maxSec;
+            }
+            AppSettings.CustomCycleDowntimeMs = [minSec * 1000, maxSec * 1000];
+        }
+
+        private void SetCustomDowntimeInputsEnabled(bool enabled)
+        {
+            numericCustomDowntimeMinSec.Enabled = enabled;
+            numericCustomDowntimeMaxSec.Enabled = enabled;
+        }
+
         private async void btnStart_Click(object sender, EventArgs e)
         {
-            
+
             if (!AppSettings.Working)
             {
                 btnStart.Text = "Stop";
                 AppSettings.Working = true;
                 if (cBoxDualClient.Checked)
                     AppSettings.DualClient = true;
+                ApplyCustomDowntimeFromUi();
                 _uiHelper.SetCycleDowntime();
 
                 //btnSettings.Enabled = false;
                 //btnViewImage.Enabled = false;
                 btnStart.Enabled = false;
-                radioBtnLong.Enabled = false;
+                radioBtnCustom.Enabled = false;
                 radioBtnMedium.Enabled = false;
                 radioBtnShort.Enabled = false;
                 radioBtnShortMedium.Enabled = false;
+                SetCustomDowntimeInputsEnabled(false);
                 //TimerDowntime.Start();
                 TimerDowntime.Enabled = true;
                 string projectPath = AppDomain.CurrentDomain.BaseDirectory;
@@ -157,12 +183,28 @@ namespace ProjectG
                 //btnSettings.Enabled = true;
                 //btnViewImage.Enabled = true;
                 btnStart.Enabled = false;
+                radioBtnCustom.Enabled = true;
+                radioBtnMedium.Enabled = true;
+                radioBtnShort.Enabled = true;
+                radioBtnShortMedium.Enabled = true;
+                SetCustomDowntimeInputsEnabled(true);
                 TSMWindow.Reset();
                 AppSettings.Reset();
                 StaticTSMButtons.Reset();
             }
 
             await _macroService.Run();
+
+            if (!AppSettings.Working)
+            {
+                btnStart.Enabled = true;
+                btnStart.Text = "Start";
+                radioBtnCustom.Enabled = true;
+                radioBtnMedium.Enabled = true;
+                radioBtnShort.Enabled = true;
+                radioBtnShortMedium.Enabled = true;
+                SetCustomDowntimeInputsEnabled(true);
+            }
         }
 
         int timeLeft = -3;
@@ -199,7 +241,7 @@ namespace ProjectG
 
             }
 
-            
+
         }
     }
 }

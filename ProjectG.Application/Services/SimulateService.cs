@@ -88,8 +88,8 @@ namespace ProjectG.ApplicationLayer.Services
                 if (bounds.Width <= 0 || bounds.Height <= 0)
                     return false;
 
-                int rnd1 = UtilityService.RandomBiasedTowardCenterInRange(bounds.X, bounds.X + bounds.Width);
-                int rnd2 = UtilityService.RandomBiasedTowardCenterInRange(bounds.Y, bounds.Y + bounds.Height);
+                int rnd1 = UtilityService.RandomClickCoordinateInRange(bounds.X, bounds.X + bounds.Width);
+                int rnd2 = UtilityService.RandomClickCoordinateInRange(bounds.Y, bounds.Y + bounds.Height);
                 int absoluteX = ScreenService.CalculateAbsolutePositionX(rnd1, UserInput.ScreenResolutionX);
                 int absoluteY = ScreenService.CalculateAbsolutePositionY(rnd2, UserInput.ScreenResolutionY);
                 int sleepMs = UtilityService.GenerateRandom(minSleepMs, maxSleepMs + 1);
@@ -136,8 +136,8 @@ namespace ProjectG.ApplicationLayer.Services
                 return await PixelProcessService.ScreenRegionFullyMatchesSavedReferenceAsync(cornerRegion, Paths.MailBoxCornerReferencePath);
             }
 
-            int rnd1 = UtilityService.RandomBiasedTowardCenterInRange(rec.X, rec.X + rec.Width);
-            int rnd2 = UtilityService.RandomBiasedTowardCenterInRange(rec.Y, rec.Y + rec.Height);
+            int rnd1 = UtilityService.RandomClickCoordinateInRange(rec.X, rec.X + rec.Width);
+            int rnd2 = UtilityService.RandomClickCoordinateInRange(rec.Y, rec.Y + rec.Height);
             int absX = ScreenService.CalculateAbsolutePositionX(rnd1, UserInput.ScreenResolutionX);
             int absY = ScreenService.CalculateAbsolutePositionY(rnd2, UserInput.ScreenResolutionY);
             _inputSimulator.Mouse.MoveMouseTo(absX, absY);
