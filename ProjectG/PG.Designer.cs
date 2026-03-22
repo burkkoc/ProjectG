@@ -46,11 +46,15 @@ namespace ProjectG
             groupBox2 = new GroupBox();
             LblState = new Label();
             cBoxDualClient = new CheckBox();
+            groupBoxInternet = new GroupBox();
+            LblInternetStatus = new Label();
+            TimerInternetUi = new System.Windows.Forms.Timer(components);
             gBoxCycleDowntime.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)numericCustomDowntimeMaxSec).BeginInit();
             ((System.ComponentModel.ISupportInitialize)numericCustomDowntimeMinSec).BeginInit();
             groupBox1.SuspendLayout();
             groupBox2.SuspendLayout();
+            groupBoxInternet.SuspendLayout();
             SuspendLayout();
             // 
             // gBoxCycleDowntime
@@ -243,12 +247,42 @@ namespace ProjectG
             cBoxDualClient.UseVisualStyleBackColor = true;
             cBoxDualClient.Visible = false;
             // 
+            // groupBoxInternet
+            // 
+            groupBoxInternet.Controls.Add(LblInternetStatus);
+            groupBoxInternet.Font = new Font("Verdana", 8.25F, FontStyle.Bold, GraphicsUnit.Point, 162);
+            groupBoxInternet.ForeColor = Color.Maroon;
+            groupBoxInternet.Location = new Point(215, 96);
+            groupBoxInternet.Name = "groupBoxInternet";
+            groupBoxInternet.Size = new Size(167, 38);
+            groupBoxInternet.TabIndex = 10;
+            groupBoxInternet.TabStop = false;
+            groupBoxInternet.Text = "Internet";
+            // 
+            // LblInternetStatus
+            // 
+            LblInternetStatus.Font = new Font("Verdana", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 162);
+            LblInternetStatus.ForeColor = Color.FromArgb(64, 64, 64);
+            LblInternetStatus.Location = new Point(6, 16);
+            LblInternetStatus.Name = "LblInternetStatus";
+            LblInternetStatus.Size = new Size(155, 14);
+            LblInternetStatus.TabIndex = 0;
+            LblInternetStatus.Text = "…";
+            LblInternetStatus.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // TimerInternetUi
+            // 
+            TimerInternetUi.Enabled = true;
+            TimerInternetUi.Interval = 1000;
+            TimerInternetUi.Tick += TimerInternetUi_Tick;
+            // 
             // PG
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(465, 122);
+            ClientSize = new Size(465, 138);
             Controls.Add(cBoxDualClient);
+            Controls.Add(groupBoxInternet);
             Controls.Add(groupBox2);
             Controls.Add(groupBox1);
             Controls.Add(btnStart);
@@ -269,6 +303,7 @@ namespace ProjectG
             ((System.ComponentModel.ISupportInitialize)numericCustomDowntimeMinSec).EndInit();
             groupBox1.ResumeLayout(false);
             groupBox2.ResumeLayout(false);
+            groupBoxInternet.ResumeLayout(false);
             ResumeLayout(false);
             PerformLayout();
         }
@@ -290,5 +325,8 @@ namespace ProjectG
         private GroupBox groupBox2;
         private Label LblState;
         private CheckBox cBoxDualClient;
+        private GroupBox groupBoxInternet;
+        private Label LblInternetStatus;
+        private System.Windows.Forms.Timer TimerInternetUi;
     }
 }

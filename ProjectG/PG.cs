@@ -241,7 +241,20 @@ namespace ProjectG
 
             }
 
+        }
 
+        private void TimerInternetUi_Tick(object sender, EventArgs e)
+        {
+            if (AppSettings.IsInternetReachable)
+            {
+                LblInternetStatus.Text = "Online";
+                LblInternetStatus.ForeColor = Color.FromArgb(0, 118, 56);
+            }
+            else
+            {
+                LblInternetStatus.Text = "Offline";
+                LblInternetStatus.ForeColor = Color.FromArgb(176, 58, 46);
+            }
         }
     }
 }

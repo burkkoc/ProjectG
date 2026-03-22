@@ -1,4 +1,5 @@
 using ProjectG.ApplicationLayer.Extensions;
+using ProjectG.ApplicationLayer.Services;
 using System.ComponentModel.Design;
 
 namespace ProjectG.PresentationLayer
@@ -18,8 +19,11 @@ namespace ProjectG.PresentationLayer
             ApplicationConfiguration.Initialize();
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            
-            Application.Run(new PG(new ApplicationLayer.Services.MacroService()));
+
+            Application.ApplicationExit += (_, _) => InternetConnectivityMonitor.Stop();
+            InternetConnectivityMonitor.Start();
+
+            Application.Run(new PG(new MacroService()));
         }
     }
 }

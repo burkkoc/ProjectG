@@ -56,6 +56,9 @@ namespace ProjectG.DomainLayer.Entities.Concrete
         public static Rectangle? MailBoxPosition { get; set; }
         public static bool Working { get; set; } = false;
 
+        /// <summary>Arka plan bağlantı denetimi (~1 sn) ile güncellenir; ilk ölçümden önce false olabilir.</summary>
+        public static volatile bool IsInternetReachable;
+
         public static int Downtime { get; set; } = 0;
         public static void Reset()
         {
