@@ -48,7 +48,7 @@ namespace ProjectG.ApplicationLayer.Services
                         await ManageDualClient();
                     else
                     {
-                    AppSettings.Downtime = UtilityService.SetCycleDowntime();
+                        AppSettings.Downtime = UtilityService.SetCycleDowntime();
                         await Task.Delay(AppSettings.Downtime);
                         AppSettings.Downtime = 0;
                     }
@@ -325,7 +325,12 @@ namespace ProjectG.ApplicationLayer.Services
 
 
                 if (await PixelProcessService.IsClickable(StaticTSMButtons.OpenAllMailButton, false))
+                {
                     await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.ESCAPE);
+
+                    if (AppSettings.DualClient)
+                        await _simulateService.SwitchWindow();
+                }
                 //amIGoingToCloseMailbox = new Random().Next(0, 2) == 1;
                 //{
                 //    if (amIGoingToCloseMailbox)
