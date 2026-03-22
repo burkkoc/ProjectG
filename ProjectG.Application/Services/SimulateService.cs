@@ -176,6 +176,35 @@ namespace ProjectG.ApplicationLayer.Services
             });
         }
 
+        /// <summary>
+        /// Makro döngüsünde sık basılan tuş için değişken ön/son bekleme ve basılı tutma; nadiren kısa ikinci dokunuş.
+        /// </summary>
+        public async Task<bool> SendHumanizedMacroKey(VirtualKeyCode vkCode)
+        {
+            await Task.Delay(UtilityService.GenerateRandom(40, 221));
+
+            int beforeDown = UtilityService.GenerateRandom(12, 91);
+            int holdMs = UtilityService.GenerateRandom(28, 99);
+            int afterUp = UtilityService.GenerateRandom(15, 66);
+            await Task.Run(() =>
+            {
+                _inputSimulator.Keyboard.Sleep(beforeDown).KeyDown(vkCode).Sleep(holdMs).KeyUp(vkCode).Sleep(afterUp);
+            });
+
+            if (Random.Shared.Next(100) < 7)
+            {
+                await Task.Delay(UtilityService.GenerateRandom(50, 181));
+                holdMs = UtilityService.GenerateRandom(18, 56);
+                await Task.Run(() =>
+                {
+                    _inputSimulator.Keyboard.Sleep(UtilityService.GenerateRandom(8, 36)).KeyDown(vkCode).Sleep(holdMs).KeyUp(vkCode);
+                });
+            }
+
+            await Task.Delay(UtilityService.GenerateRandom(70, 361));
+            return true;
+        }
+
         public async Task<bool> SwitchWindow()
         {
             return await Task.Run(() =>

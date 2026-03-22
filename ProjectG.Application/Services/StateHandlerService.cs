@@ -221,7 +221,7 @@ namespace ProjectG.ApplicationLayer.Services
                     isFailed = null;
                     AppSettings.State = State.PostingDone;
                 }
-                else await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
+                else await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
             }
             catch
             {
@@ -502,7 +502,7 @@ namespace ProjectG.ApplicationLayer.Services
                     isFailed = null;
                     AppSettings.State = State.CancelingDone;
                 }
-                else await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
+                else await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
 
             }
             catch
