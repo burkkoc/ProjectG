@@ -10,6 +10,7 @@ namespace ProjectG
     {
         private readonly MacroService _macroService;
         private UIHelper _uiHelper;
+        private Keys _mailboxLocateKey = Keys.Z;
         public PG(MacroService macroService)
         {
             InitializeComponent();
@@ -17,6 +18,7 @@ namespace ProjectG
             _uiHelper = new UIHelper(this);
             _uiHelper.Initiate();
             this.KeyPreview = true;
+            LoadMailboxHotkeyFromSettings();
 
             //Paths.PostCancelImagePath = UtilityService.GetDirectory(ActiveWindow.PostCancel);
             //Paths.AHMenuImagePath = UtilityService.GetDirectory(ActiveWindow.AHMenu);
@@ -98,7 +100,7 @@ namespace ProjectG
         private async void PG_KeyDown(object sender, KeyEventArgs e)
         {
             //if (e.Control && e.Alt && e.KeyCode == Keys.P)
-            if (e.KeyCode == Keys.Z)
+            if (e.KeyCode == _mailboxLocateKey)
             {
                 int x = Cursor.Position.X;
                 int y = Cursor.Position.Y;
@@ -119,7 +121,22 @@ namespace ProjectG
             var b = Bounds;
             f.Location = new Point(b.Left, b.Bottom + 4);
             f.TopMost = true;
-            f.ShowDialog(this);
+            if (f.ShowDialog(this) == DialogResult.OK)
+                LoadMailboxHotkeyFromSettings();
+        }
+
+        private void LoadMailboxHotkeyFromSettings()
+        {
+            var settings = NtfySettingsStore.Load();
+            if (!string.IsNullOrWhiteSpace(settings.MailboxLocateHotkey)
+                && Enum.TryParse<Keys>(settings.MailboxLocateHotkey, true, out var parsedKey))
+            {
+                _mailboxLocateKey = parsedKey;
+            }
+            else
+            {
+                _mailboxLocateKey = Keys.Z;
+            }
         }
 
         private void ApplyCustomDowntimeFromUi()

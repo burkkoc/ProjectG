@@ -246,7 +246,6 @@ namespace ProjectG
             cBoxDualClient.TabIndex = 9;
             cBoxDualClient.Text = "DualClient";
             cBoxDualClient.UseVisualStyleBackColor = true;
-            cBoxDualClient.Visible = false;
             // 
             // groupBoxInternet
             // 
@@ -285,7 +284,7 @@ namespace ProjectG
             btnSettings.Name = "btnSettings";
             btnSettings.Size = new Size(70, 28);
             btnSettings.TabIndex = 11;
-            btnSettings.Text = "Ayarlar";
+            btnSettings.Text = "Settings";
             btnSettings.UseVisualStyleBackColor = true;
             btnSettings.Click += btnSettings_Click;
             // 

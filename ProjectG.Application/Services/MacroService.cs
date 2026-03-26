@@ -1,31 +1,82 @@
-﻿
+
 using ProjectG.DomainLayer.Entities.Concrete;
 using ProjectG.DomainLayer.Entities.Enums;
 using ProjectG.InfrastructureLayer.Services;
 using System.Drawing;
 using System.Reflection;
 using ProjectG.DomainLayer.Entities.Concrete.Statics;
+using System.Runtime.Versioning;
+using System.Diagnostics;
+using System.Text;
 
 namespace ProjectG.ApplicationLayer.Services
 {
+    [SupportedOSPlatform("windows")]
     public class MacroService
     {
-        
+        /// <summary>Çoğu state için bu süreden uzun kalınırsa <see cref="State.OnCycleDowntime"/>'a dönülür.</summary>
+        static readonly TimeSpan StallTimeoutOperational = TimeSpan.FromMinutes(2);
+
+        /// <summary><see cref="State.OnCycleDowntime"/> içinde uzun beklemeler (cycle downtime vb.) için üst sınır.</summary>
+        static readonly TimeSpan StallTimeoutOnCycleDowntime = TimeSpan.FromMinutes(18);
+
         SimulateService _simulateService = new();
         StateHandlerService _stateHandlerService;
+        State? _watchdogLastState;
+        DateTime _watchdogStateEnteredUtc;
+        readonly Dictionary<State, TimeSpan> _stateTotalDurations = new();
+        readonly object _stateDurationGate = new();
+        int? _dynamicRestockThresholdSec;
+        int? _baselineCombinedSec;
+        int? _lastNotifiedCombinedSec;
+        TimeSpan _pendingPostFlowDuration = TimeSpan.Zero;
+        readonly object _restockLogGate = new();
+        double _restockThresholdRatio = 0.90;
+        int _restockMaxNotificationCount = 3;
+        int _restockNotificationSentCount;
+
         public MacroService()
         {
             _stateHandlerService = new(_simulateService);
+            LoadRestockSettings();
         }
 
-        
+        static TimeSpan StallTimeoutForState(State s)
+        {
+            if (s == State.Stopped)
+                return TimeSpan.Zero;
+            return s == State.OnCycleDowntime ? StallTimeoutOnCycleDowntime : StallTimeoutOperational;
+        }
+
+
         public async Task Run()
         {
+            LoadRestockSettings();
             AppSettings.State = State.OnCycleDowntime;
             await Task.Run(async () =>
             {
                 while (AppSettings.Working)
                 {
+                    var currentState = AppSettings.State;
+                    if (_watchdogLastState != currentState)
+                    {
+                        if (_watchdogLastState.HasValue)
+                            await HandleStateExitAsync(_watchdogLastState.Value, DateTime.UtcNow - _watchdogStateEnteredUtc);
+                        _watchdogLastState = currentState;
+                        _watchdogStateEnteredUtc = DateTime.UtcNow;
+                    }
+                    else
+                    {
+                        var limit = StallTimeoutForState(currentState);
+                        if (limit > TimeSpan.Zero && DateTime.UtcNow - _watchdogStateEnteredUtc > limit)
+                        {
+                            await _stateHandlerService.RecoverFromStallAsync();
+                            _watchdogLastState = AppSettings.State;
+                            _watchdogStateEnteredUtc = DateTime.UtcNow;
+                            continue;
+                        }
+                    }
+
                     switch (AppSettings.State)
                     {
                         case State.OnCycleDowntime:
@@ -97,6 +148,112 @@ namespace ProjectG.ApplicationLayer.Services
             });
 
 
+        }
+
+        async Task HandleStateExitAsync(State exitedState, TimeSpan elapsed)
+        {
+            lock (_stateDurationGate)
+            {
+                if (_stateTotalDurations.TryGetValue(exitedState, out var total))
+                    _stateTotalDurations[exitedState] = total + elapsed;
+                else
+                    _stateTotalDurations[exitedState] = elapsed;
+            }
+
+            if (exitedState == State.RunPostButtonClicked || exitedState == State.WaitingForLoadingPosting)
+            {
+                _pendingPostFlowDuration += elapsed;
+                LogRestockFlow($"accumulate {exitedState}: +{elapsed.TotalSeconds:F2}s, pending={_pendingPostFlowDuration.TotalSeconds:F2}s");
+            }
+
+            if (exitedState == State.PostingLoaded)
+            {
+                var combined = _pendingPostFlowDuration + elapsed;
+                _pendingPostFlowDuration = TimeSpan.Zero;
+                int combinedSec = (int)Math.Floor(combined.TotalSeconds);
+                LogRestockFlow($"PostingLoaded exit: elapsed={elapsed.TotalSeconds:F2}s, combined={combined.TotalSeconds:F2}s ({combinedSec}s)");
+
+                if (!_dynamicRestockThresholdSec.HasValue)
+                {
+                    _baselineCombinedSec = combinedSec;
+                    _dynamicRestockThresholdSec = (int)Math.Floor(combinedSec * _restockThresholdRatio);
+                    LogRestockFlow($"threshold initialized from first combined: baseline={_baselineCombinedSec.Value}s, threshold={_dynamicRestockThresholdSec.Value}s");
+                }
+                else if (combinedSec <= _dynamicRestockThresholdSec.Value)
+                {
+                    if (_restockNotificationSentCount >= _restockMaxNotificationCount)
+                    {
+                        LogRestockFlow($"notify skipped: max notification reached ({_restockMaxNotificationCount})");
+                        return;
+                    }
+
+                    string title = "Restock detected";
+                    int shorterPercent = 0;
+                    if (_baselineCombinedSec.HasValue && _baselineCombinedSec.Value > 0)
+                    {
+                        double diffRatio = (_baselineCombinedSec.Value - combinedSec) / (double)_baselineCombinedSec.Value;
+                        shorterPercent = (int)Math.Round(Math.Max(0, diffRatio) * 100, MidpointRounding.AwayFromZero);
+                    }
+
+                    string message =
+                        $"RunPostButtonClicked+WaitingForLoadingPosting+PostingLoaded: {combinedSec}s, threshold: {_dynamicRestockThresholdSec.Value}s. " +
+                        $"Normal suresinden yaklasik %{shorterPercent} daha kisaydi.";
+                    LogRestockFlow($"triggered notify: combined={combinedSec}s <= threshold={_dynamicRestockThresholdSec.Value}s");
+                    bool sent = await InternetConnectivityMonitor.SendTextNotificationAsync(title, message).ConfigureAwait(false);
+                    if (sent)
+                    {
+                        _restockNotificationSentCount++;
+                        _lastNotifiedCombinedSec = combinedSec;
+                        _dynamicRestockThresholdSec = (int)Math.Floor(_lastNotifiedCombinedSec.Value * 0.90);
+                        LogRestockFlow($"next threshold from last notify: last={_lastNotifiedCombinedSec.Value}s, nextThreshold={_dynamicRestockThresholdSec.Value}s");
+                    }
+                    LogRestockFlow($"notify result: {(sent ? "success" : "failed")}");
+                }
+                else
+                {
+                    LogRestockFlow($"no notify: combined={combinedSec}s > threshold={_dynamicRestockThresholdSec.Value}s");
+                }
+            }
+            else if (exitedState != State.RunPostButtonClicked && exitedState != State.WaitingForLoadingPosting)
+            {
+                // Akış beklenmedik state ile kırıldıysa eski süreyi taşımayalım.
+                if (_pendingPostFlowDuration > TimeSpan.Zero)
+                    LogRestockFlow($"flow reset at state={exitedState}, pending was {_pendingPostFlowDuration.TotalSeconds:F2}s");
+                _pendingPostFlowDuration = TimeSpan.Zero;
+            }
+        }
+
+        void LoadRestockSettings()
+        {
+            var s = NtfySettingsStore.Load();
+            _restockMaxNotificationCount = Math.Max(0, s.RestockMaxNotificationCount);
+            _restockThresholdRatio = Math.Clamp(s.RestockThresholdPercent / 100.0, 0.0, 1.0);
+            LogRestockFlow($"settings loaded: maxNotification={_restockMaxNotificationCount}, thresholdPercent={s.RestockThresholdPercent}, thresholdRatio={_restockThresholdRatio:F2}");
+        }
+
+        void LogRestockFlow(string message)
+        {
+            var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] restock-flow: {message}";
+            Debug.WriteLine(line);
+            try
+            {
+                lock (_restockLogGate)
+                {
+                    var localDir = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "ProjectG");
+                    Directory.CreateDirectory(localDir);
+                    var localPath = Path.Combine(localDir, "restock-debug.log");
+                    File.AppendAllText(localPath, line + Environment.NewLine, Encoding.UTF8);
+
+                    var appPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "restock-debug.log");
+                    File.AppendAllText(appPath, line + Environment.NewLine, Encoding.UTF8);
+                }
+            }
+            catch
+            {
+                // logging should not break macro flow
+            }
         }
 
         //public async Task Test()

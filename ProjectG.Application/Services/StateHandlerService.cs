@@ -24,14 +24,23 @@ namespace ProjectG.ApplicationLayer.Services
         private bool amIGoingToCloseMailbox;
         private Task<bool>? isWindowOpen = null;
         private bool startingNow = true;
+        private DateTime? cancelingLoadedEnteredUtc;
+        private TimeSpan? firstCancelingLoadedDuration;
+        private TimeSpan cancelingLoadedExtraThreshold = TimeSpan.FromSeconds(5);
         public StateHandlerService(SimulateService simulateService)
         {
             _simulateService = simulateService;
+            LoadCancelingLoadedThresholdSettings();
         }
         public async Task OnCycleDowntimeHandler()
         {
             try
             {
+                if (await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.AHMenu))
+                {
+                    await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.ESCAPE);
+                    await Task.Delay(UtilityService.GenerateRandom(120, 280));
+                }
 
                 await Task.Delay(UtilityService.GenerateRandom(2400, 3601));
                 await _simulateService.MouseMove(50, ButtonContainer.AH);
@@ -471,6 +480,15 @@ namespace ProjectG.ApplicationLayer.Services
         {
             try
             {
+                cancelingLoadedEnteredUtc ??= DateTime.UtcNow;
+                if (firstCancelingLoadedDuration.HasValue
+                    && DateTime.UtcNow - cancelingLoadedEnteredUtc.Value > firstCancelingLoadedDuration.Value + cancelingLoadedExtraThreshold)
+                {
+                    AppSettings.State = State.CancelingDone;
+                    cancelingLoadedEnteredUtc = null;
+                    return;
+                }
+
                 if (resultTask == null || !resultTask.Result)
                 {
                     resultTask = Task.Run(() => TesseractService.IsTextExist(SearchTerms.PostCancelFinished, Paths.PostCancelImagePath));
@@ -491,12 +509,15 @@ namespace ProjectG.ApplicationLayer.Services
                 if (isFailed.Result && isFailed.IsCompleted)
                 {
                     AppSettings.State = State.CancelingDone;
+                    TrySetFirstCancelingLoadedDuration();
+                    cancelingLoadedEnteredUtc = null;
                     return;
                 }
 
                 if (isWindowOpen.IsCompleted && !isWindowOpen.Result)
                 {
                     AppSettings.State = State.WindowNotFound;
+                    cancelingLoadedEnteredUtc = null;
                     return;
                 }
                 if (resultTask.IsCompleted && resultTask.Result)
@@ -506,6 +527,8 @@ namespace ProjectG.ApplicationLayer.Services
                     isWindowOpen = null;
                     isFailed = null;
                     AppSettings.State = State.CancelingDone;
+                    TrySetFirstCancelingLoadedDuration();
+                    cancelingLoadedEnteredUtc = null;
                 }
                 else await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
 
@@ -520,6 +543,12 @@ namespace ProjectG.ApplicationLayer.Services
         {
             await ResetCycle();
         }
+
+        /// <summary>
+        /// Uzun süre aynı state'te takılı kaldığında <see cref="MacroService"/> tarafından çağrılır; <see cref="ResetCycle"/> ile aynı kurtarma.
+        /// </summary>
+        public Task RecoverFromStallAsync() => ResetCycle();
+
         private async Task ResetCycle()
         {
             AppSettings.State = State.OnCycleDowntime;
@@ -529,10 +558,24 @@ namespace ProjectG.ApplicationLayer.Services
             isWindowOpen = null;
             isFailed = null;
             isClickable = null;
+            cancelingLoadedEnteredUtc = null;
             if (TSMWindow.AHBorder != null && await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.AHMenu) || (TSMWindow.MailBoxBorder != null && await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.MailBox)))
             {
                 await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.ESCAPE);
             }
+        }
+
+        private void TrySetFirstCancelingLoadedDuration()
+        {
+            if (firstCancelingLoadedDuration.HasValue || !cancelingLoadedEnteredUtc.HasValue)
+                return;
+            firstCancelingLoadedDuration = DateTime.UtcNow - cancelingLoadedEnteredUtc.Value;
+        }
+
+        private void LoadCancelingLoadedThresholdSettings()
+        {
+            var settings = NtfySettingsStore.Load();
+            cancelingLoadedExtraThreshold = TimeSpan.FromSeconds(Math.Max(0, settings.CancelingLoadedExtraThresholdSeconds));
         }
 
         private async Task ManageDualClient()

@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.Json;
+using System.Diagnostics;
 
 namespace ProjectG.ApplicationLayer.Services
 {
@@ -25,7 +26,9 @@ namespace ProjectG.ApplicationLayer.Services
         static string _ntfyNotifyTopicUrl = DefaultNtfyNotifyTopicUrl;
         static string _ntfyFileUploadTopicUrl = DeriveFileUploadTopicUrl(DefaultNtfyNotifyTopicUrl);
 
-        const string NtfyUploadFilename = "photo.png";
+        const string NtfyUploadFilename = "photo.jpg";
+        const int NtfyMaxUploadBytes = 900_000;
+        static readonly TimeSpan SendRetryBackoff = TimeSpan.FromSeconds(20);
 
         /// <summary>Bildirimin gideceği konu URL’si (ör. https://ntfy.sh/mytopic).</summary>
         public static string NtfyNotifyTopicUrl => _ntfyNotifyTopicUrl;
@@ -68,9 +71,17 @@ namespace ProjectG.ApplicationLayer.Services
         static CancellationTokenSource? _cts;
         static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(4) };
         static readonly HttpClient NtfyUploadHttp = new() { Timeout = TimeSpan.FromMinutes(2) };
+        static readonly TimeSpan OfflineScreenshotDelay = TimeSpan.FromSeconds(10);
+        static readonly TimeSpan MinOfflineDurationForNtfy = TimeSpan.FromSeconds(2);
 
         /// <summary>En az bir kez offline görüldükten sonra tekrar online olunduğunda ekran görüntüsü gönderilir.</summary>
         static volatile bool _hadOfflineSinceLastNotify;
+        static DateTime _offlineDetectedUtc;
+        static byte[]? _pendingOfflineScreenshotPng;
+        static bool _isCapturingOfflineScreenshot;
+        static bool _isSendingOfflineNotification;
+        static DateTime _nextSendAttemptUtc;
+        static bool _offlineQualifiedForNtfy;
 
         [DllImport("user32.dll")]
         static extern int GetSystemMetrics(int nIndex);
@@ -87,6 +98,7 @@ namespace ProjectG.ApplicationLayer.Services
                 if (_cts != null)
                     return;
                 _cts = new CancellationTokenSource();
+                LogNtfyDebug("monitor", "start requested");
                 _ = Task.Run(() => LoopAsync(_cts.Token));
             }
         }
@@ -107,6 +119,8 @@ namespace ProjectG.ApplicationLayer.Services
 
         static async Task LoopAsync(CancellationToken ct)
         {
+            bool? lastOk = null;
+            LogNtfyDebug("monitor", "loop started");
             while (!ct.IsCancellationRequested)
             {
                 bool ok = false;
@@ -128,12 +142,100 @@ namespace ProjectG.ApplicationLayer.Services
                     ok = false;
                 }
 
-                if (!ok)
-                    _hadOfflineSinceLastNotify = true;
-                else if (_hadOfflineSinceLastNotify)
+                if (lastOk != ok)
                 {
+                    LogNtfyDebug("monitor", ok ? "state online" : "state offline");
+                    lastOk = ok;
+                }
+
+                if (!ok)
+                {
+                    if (!_hadOfflineSinceLastNotify)
+                    {
+                        _offlineDetectedUtc = DateTime.UtcNow;
+                        _offlineQualifiedForNtfy = false;
+                        _nextSendAttemptUtc = DateTime.MinValue;
+                        LogNtfyDebug("monitor", "offline detected; 10s timer started");
+                    }
+                    _hadOfflineSinceLastNotify = true;
+
+                    if (!_offlineQualifiedForNtfy && DateTime.UtcNow - _offlineDetectedUtc > MinOfflineDurationForNtfy)
+                    {
+                        _offlineQualifiedForNtfy = true;
+                        LogNtfyDebug("monitor", "offline duration qualified for ntfy (>2s)");
+                    }
+                }
+                else if (_hadOfflineSinceLastNotify && !_offlineQualifiedForNtfy)
+                {
+                    var outage = DateTime.UtcNow - _offlineDetectedUtc;
+                    LogNtfyDebug("monitor", $"offline ignored (<=2s), duration={outage.TotalSeconds:F2}s");
                     _hadOfflineSinceLastNotify = false;
-                    _ = Task.Run(() => CaptureScreenAndUploadToNtfyAsync(ct), CancellationToken.None);
+                    _pendingOfflineScreenshotPng = null;
+                    _isCapturingOfflineScreenshot = false;
+                    _isSendingOfflineNotification = false;
+                    _nextSendAttemptUtc = DateTime.MinValue;
+                }
+                else if (_hadOfflineSinceLastNotify
+                    && _pendingOfflineScreenshotPng is not null
+                    && !_isSendingOfflineNotification
+                    && DateTime.UtcNow >= _nextSendAttemptUtc)
+                {
+                    _isSendingOfflineNotification = true;
+                    var screenshot = _pendingOfflineScreenshotPng;
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            if (screenshot is not null)
+                            {
+                                bool sent = await SendScreenshotToNtfyAsync(screenshot, ct).ConfigureAwait(false);
+                                if (sent)
+                                {
+                                    _hadOfflineSinceLastNotify = false;
+                                    _pendingOfflineScreenshotPng = null;
+                                    _nextSendAttemptUtc = DateTime.MinValue;
+                                }
+                                else
+                                {
+                                    _nextSendAttemptUtc = DateTime.UtcNow + SendRetryBackoff;
+                                    LogNtfyDebug("monitor", $"send failed; next retry at {_nextSendAttemptUtc:HH:mm:ss}");
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            _isSendingOfflineNotification = false;
+                        }
+                    }, CancellationToken.None);
+                }
+
+                if (_hadOfflineSinceLastNotify
+                    && _offlineQualifiedForNtfy
+                    && _pendingOfflineScreenshotPng is null
+                    && !_isCapturingOfflineScreenshot
+                    && DateTime.UtcNow - _offlineDetectedUtc >= OfflineScreenshotDelay)
+                {
+                    _isCapturingOfflineScreenshot = true;
+                    LogNtfyDebug("monitor", "offline screenshot capture started");
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            _pendingOfflineScreenshotPng = await CaptureScreenPayloadAsync(ct).ConfigureAwait(false);
+                            LogNtfyDebug("ntfy-send-flow", $"offline-screenshot-captured bytes={_pendingOfflineScreenshotPng.Length}");
+                        }
+                        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                        {
+                        }
+                        catch (Exception ex)
+                        {
+                            LogNtfyDebug("ntfy-send-flow", $"offline-screenshot-exception {ex.GetType().Name}: {ex.Message}");
+                        }
+                        finally
+                        {
+                            _isCapturingOfflineScreenshot = false;
+                        }
+                    }, CancellationToken.None);
                 }
 
                 AppSettings.IsInternetReachable = ok;
@@ -149,29 +251,41 @@ namespace ProjectG.ApplicationLayer.Services
             }
         }
 
-        static async Task CaptureScreenAndUploadToNtfyAsync(CancellationToken ct)
+        static async Task<byte[]> CaptureScreenPayloadAsync(CancellationToken ct)
         {
+            return await Task.Run(
+                () =>
+                {
+                    using var bmp = CaptureVirtualScreenBitmap();
+                    return EncodeScreenshotForNtfy(bmp);
+                },
+                ct).ConfigureAwait(false);
+        }
+
+        static async Task<bool> SendScreenshotToNtfyAsync(byte[] png, CancellationToken ct)
+        {
+            const string flow = "ntfy-send-flow";
             try
             {
-                byte[] png = await Task.Run(
-                    () =>
-                    {
-                        using var bmp = CaptureVirtualScreenBitmap();
-                        using var ms = new MemoryStream();
-                        bmp.Save(ms, ImageFormat.Png);
-                        return ms.ToArray();
-                    },
-                    ct).ConfigureAwait(false);
+                LogNtfyDebug(flow, $"start notify='{_ntfyNotifyTopicUrl}' upload='{_ntfyFileUploadTopicUrl}'");
+                LogNtfyDebug(flow, $"capture-ok bytes={png.Length}");
 
                 using var content = new ByteArrayContent(png);
-                content.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+                content.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
                 using var putReq = new HttpRequestMessage(HttpMethod.Put, _ntfyFileUploadTopicUrl) { Content = content };
                 putReq.Headers.TryAddWithoutValidation("Filename", NtfyUploadFilename);
                 using var putResp = await NtfyUploadHttp.SendAsync(putReq, ct).ConfigureAwait(false);
-                putResp.EnsureSuccessStatusCode();
                 var json = await putResp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                LogNtfyDebug(flow, $"upload-response status={(int)putResp.StatusCode} body='{TruncateForLog(json)}'");
+                if (!putResp.IsSuccessStatusCode)
+                    return false;
+
                 if (!TryParseNtfyFileUploadResponse(json, out var fileUrl))
-                    return;
+                {
+                    LogNtfyDebug(flow, "upload-parse-failed");
+                    return false;
+                }
+                LogNtfyDebug(flow, $"upload-parse-ok fileUrl='{fileUrl}'");
 
                 using var postReq = new HttpRequestMessage(HttpMethod.Post, _ntfyNotifyTopicUrl);
                 postReq.Headers.TryAddWithoutValidation("Click", fileUrl);
@@ -182,14 +296,53 @@ namespace ProjectG.ApplicationLayer.Services
                     "text/plain");
 
                 using var postResp = await NtfyUploadHttp.SendAsync(postReq, ct).ConfigureAwait(false);
-                postResp.EnsureSuccessStatusCode();
+                var notifyBody = await postResp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                LogNtfyDebug(flow, $"notify-response status={(int)postResp.StatusCode} body='{TruncateForLog(notifyBody)}'");
+                if (!postResp.IsSuccessStatusCode)
+                    return false;
+
+                LogNtfyDebug(flow, "done");
+                return true;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
+                LogNtfyDebug(flow, "cancelled");
+                return false;
             }
-            catch
+            catch (Exception ex)
             {
                 // Bildirim başarısız olsa bile monitör döngüsü çalışmaya devam eder.
+                LogNtfyDebug(flow, $"exception {ex.GetType().Name}: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Fotoğraf olmadan metin bildirimi gönderir.
+        /// </summary>
+        public static async Task<bool> SendTextNotificationAsync(string title, string message, CancellationToken ct = default)
+        {
+            const string flow = "ntfy-text-flow";
+            try
+            {
+                using var postReq = new HttpRequestMessage(HttpMethod.Post, _ntfyNotifyTopicUrl);
+                postReq.Headers.TryAddWithoutValidation("Title", SanitizeAsciiHeaderValue(title));
+                postReq.Content = new StringContent(message ?? string.Empty, Encoding.UTF8, "text/plain");
+
+                using var postResp = await NtfyUploadHttp.SendAsync(postReq, ct).ConfigureAwait(false);
+                var body = await postResp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                LogNtfyDebug(flow, $"notify-response status={(int)postResp.StatusCode} body='{TruncateForLog(body)}'");
+                return postResp.IsSuccessStatusCode;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                LogNtfyDebug(flow, "cancelled");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                LogNtfyDebug(flow, $"exception {ex.GetType().Name}: {ex.Message}");
+                return false;
             }
         }
 
@@ -262,6 +415,100 @@ namespace ProjectG.ApplicationLayer.Services
                 g.CopyFromScreen(x, y, 0, 0, new Size(w, h), CopyPixelOperation.SourceCopy);
             }
             return bmp;
+        }
+
+        static byte[] EncodeScreenshotForNtfy(Bitmap source)
+        {
+            byte[]? bestEffort = null;
+            double scale = 1.0;
+            int[] qualities = [75, 60, 45, 35];
+
+            for (int attempt = 0; attempt < 8; attempt++)
+            {
+                int w = Math.Max(1, (int)Math.Round(source.Width * scale));
+                int h = Math.Max(1, (int)Math.Round(source.Height * scale));
+                using var resized = ResizeBitmap(source, w, h);
+
+                foreach (var q in qualities)
+                {
+                    var jpeg = SaveJpegToBytes(resized, q);
+                    if (bestEffort is null || jpeg.Length < bestEffort.Length)
+                        bestEffort = jpeg;
+                    if (jpeg.Length <= NtfyMaxUploadBytes)
+                        return jpeg;
+                }
+
+                scale *= 0.8;
+            }
+
+            return bestEffort ?? SaveJpegToBytes(source, 35);
+        }
+
+        static Bitmap ResizeBitmap(Bitmap source, int width, int height)
+        {
+            var target = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+            using var g = Graphics.FromImage(target);
+            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+            g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+            g.DrawImage(source, new Rectangle(0, 0, width, height));
+            return target;
+        }
+
+        static byte[] SaveJpegToBytes(Bitmap bmp, long quality)
+        {
+            using var ms = new MemoryStream();
+            var encoder = GetJpegEncoder();
+            if (encoder is null)
+            {
+                bmp.Save(ms, ImageFormat.Jpeg);
+                return ms.ToArray();
+            }
+
+            using var encoderParams = new EncoderParameters(1);
+            encoderParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, quality);
+            bmp.Save(ms, encoder, encoderParams);
+            return ms.ToArray();
+        }
+
+        static ImageCodecInfo? GetJpegEncoder()
+        {
+            foreach (var codec in ImageCodecInfo.GetImageEncoders())
+            {
+                if (codec.FormatID == ImageFormat.Jpeg.Guid)
+                    return codec;
+            }
+            return null;
+        }
+
+        static void LogNtfyDebug(string scope, string message)
+        {
+            var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {scope}: {message}";
+            Debug.WriteLine(line);
+            try
+            {
+                var localDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "ProjectG");
+                Directory.CreateDirectory(localDir);
+                var localPath = Path.Combine(localDir, "ntfy-debug.log");
+                File.AppendAllText(localPath, line + Environment.NewLine, Encoding.UTF8);
+
+                // Ek görünürlük: uygulama klasörüne de aynı logdan yaz.
+                var appPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ntfy-debug.log");
+                File.AppendAllText(appPath, line + Environment.NewLine, Encoding.UTF8);
+            }
+            catch
+            {
+                // logging should never break monitor flow
+            }
+        }
+
+        static string TruncateForLog(string value, int maxLen = 300)
+        {
+            if (string.IsNullOrEmpty(value))
+                return string.Empty;
+            return value.Length <= maxLen ? value : value[..maxLen] + "...";
         }
     }
 }

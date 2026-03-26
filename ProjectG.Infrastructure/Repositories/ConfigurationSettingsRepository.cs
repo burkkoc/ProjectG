@@ -18,12 +18,12 @@ namespace ProjectG.InfrastructureLayer.Repositories
 
         public ConfigurationSettingsRepository()
         {
-         currentPath = Directory.GetCurrentDirectory();
-            settingsFilePath = Path.Combine(currentPath, "AppSettings.json");    
+            currentPath = Directory.GetCurrentDirectory();
+            settingsFilePath = Path.Combine(currentPath, "AppSettings.json");
         }
         public bool AddNewSettings()
         {
-             //settingsFilePath = Path.Combine(currentPath, "AppSettings.json");
+            //settingsFilePath = Path.Combine(currentPath, "AppSettings.json");
             Random random = new Random();
 
             // Eğer dosya yoksa oluştur
@@ -61,7 +61,7 @@ namespace ProjectG.InfrastructureLayer.Repositories
 
         public bool GetKeys()
         {
-            
+
             var jsonString = File.ReadAllText(settingsFilePath);
 
             // JSON'u bir JObject'e dönüştür
