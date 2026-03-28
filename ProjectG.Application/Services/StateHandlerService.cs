@@ -27,6 +27,22 @@ namespace ProjectG.ApplicationLayer.Services
         private DateTime? cancelingLoadedEnteredUtc;
         private TimeSpan? firstCancelingLoadedDuration;
         private TimeSpan cancelingLoadedExtraThreshold = TimeSpan.FromSeconds(5);
+
+        enum DynamicAhFlowVariant
+        {
+            None,
+            ClassicCancelFirst,
+            PostDelayCancelPost,
+            PostThenCancel,
+            PostDelayThenCancel,
+        }
+
+        DynamicAhFlowVariant _dynamicAhFlowVariant;
+        bool _dynamicAhFlowLocked;
+        bool _dynamicAhPostFirstExitExpectCancel;
+        bool _dynamicAhV2MailboxAfterSecondPost;
+        bool _dynamicAhForceMailboxPostingDone;
+
         public StateHandlerService(SimulateService simulateService)
         {
             _simulateService = simulateService;
@@ -79,6 +95,7 @@ namespace ProjectG.ApplicationLayer.Services
                         exitCounter = 0;
                         if (isResetted)
                             isResetted = false;
+                        ResetDynamicAhFlowSession();
                     }
 
                     if (StaticTSMButtons.RunCancelScan != null)
@@ -149,12 +166,44 @@ namespace ProjectG.ApplicationLayer.Services
                     return;
 
                 }
-                result = await PixelProcessService.IsClickable(StaticTSMButtons.RunCancelScan ?? throw new NullReferenceException());
-                if (result)
+
+                if (!AppSettings.DynamicAhFlow)
                 {
-                    result = false;
-                    result = await _simulateService.MouseClick(StaticTSMButtons.RunCancelScan ?? throw new NullReferenceException());
-                    AppSettings.State = State.RunCancelButtonClicked;
+                    result = await PixelProcessService.IsClickable(StaticTSMButtons.RunCancelScan ?? throw new NullReferenceException());
+                    if (result)
+                    {
+                        result = false;
+                        result = await _simulateService.MouseClick(StaticTSMButtons.RunCancelScan ?? throw new NullReferenceException());
+                        AppSettings.State = State.RunCancelButtonClicked;
+                    }
+                    return;
+                }
+
+                if (!_dynamicAhFlowLocked)
+                {
+                    _dynamicAhFlowLocked = true;
+                    _dynamicAhFlowVariant = PickDynamicAhFlowVariantWeighted();
+                }
+
+                if (_dynamicAhFlowVariant == DynamicAhFlowVariant.ClassicCancelFirst)
+                {
+                    result = await PixelProcessService.IsClickable(StaticTSMButtons.RunCancelScan ?? throw new NullReferenceException());
+                    if (result)
+                    {
+                        result = false;
+                        result = await _simulateService.MouseClick(StaticTSMButtons.RunCancelScan ?? throw new NullReferenceException());
+                        AppSettings.State = State.RunCancelButtonClicked;
+                    }
+                }
+                else
+                {
+                    result = await PixelProcessService.IsClickable(StaticTSMButtons.RunPostScan ?? throw new NullReferenceException());
+                    if (result)
+                    {
+                        result = false;
+                        result = await _simulateService.MouseClick(StaticTSMButtons.RunPostScan ?? throw new NullReferenceException());
+                        AppSettings.State = State.RunPostButtonClicked;
+                    }
                 }
             }
             catch
@@ -284,6 +333,25 @@ namespace ProjectG.ApplicationLayer.Services
                     return;
 
                 }
+
+                if (_dynamicAhForceMailboxPostingDone)
+                {
+                    _dynamicAhForceMailboxPostingDone = false;
+                }
+                else if (ShouldInterceptPostingDoneForDynamicAhFlow())
+                {
+                    if (_dynamicAhFlowVariant == DynamicAhFlowVariant.PostDelayCancelPost
+                        || _dynamicAhFlowVariant == DynamicAhFlowVariant.PostDelayThenCancel)
+                    {
+                        await Task.Delay(Random.Shared.Next(5000, 10001));
+                    }
+
+                    _dynamicAhPostFirstExitExpectCancel = true;
+                    AppSettings.State = State.WaitingForExitScan;
+                    result = false;
+                    return;
+                }
+
                 if (AppSettings.MailBoxPosition == null)
                     throw new NullReferenceException();
 
@@ -424,9 +492,48 @@ namespace ProjectG.ApplicationLayer.Services
                     return;
 
                 }
+
+                if (!AppSettings.DynamicAhFlow
+                    || _dynamicAhFlowVariant == DynamicAhFlowVariant.None
+                    || _dynamicAhFlowVariant == DynamicAhFlowVariant.ClassicCancelFirst)
+                {
+                    if (exitCounter < 2)
+                    {
+                        await _simulateService.MouseClick(StaticTSMButtons.RunPostScan ?? throw new NullReferenceException());
+                        AppSettings.State = State.RunPostButtonClicked;
+                    }
+                    return;
+                }
+
+                if (exitCounter == 1 && _dynamicAhPostFirstExitExpectCancel)
+                {
+                    await _simulateService.MouseClick(StaticTSMButtons.RunCancelScan ?? throw new NullReferenceException());
+                    AppSettings.State = State.RunCancelButtonClicked;
+                    _dynamicAhPostFirstExitExpectCancel = false;
+                    return;
+                }
+
+                if (exitCounter == 2)
+                {
+                    if (_dynamicAhFlowVariant == DynamicAhFlowVariant.PostDelayCancelPost)
+                    {
+                        await _simulateService.MouseClick(StaticTSMButtons.RunPostScan ?? throw new NullReferenceException());
+                        AppSettings.State = State.RunPostButtonClicked;
+                        _dynamicAhV2MailboxAfterSecondPost = true;
+                        return;
+                    }
+
+                    if (_dynamicAhFlowVariant == DynamicAhFlowVariant.PostThenCancel
+                        || _dynamicAhFlowVariant == DynamicAhFlowVariant.PostDelayThenCancel)
+                    {
+                        _dynamicAhForceMailboxPostingDone = true;
+                        AppSettings.State = State.PostingDone;
+                        return;
+                    }
+                }
+
                 if (exitCounter < 2)
                 {
-                    //await Task.Delay(UtilityService.GenerateRandom(500, 1000));
                     await _simulateService.MouseClick(StaticTSMButtons.RunPostScan ?? throw new NullReferenceException());
                     AppSettings.State = State.RunPostButtonClicked;
                 }
@@ -559,6 +666,7 @@ namespace ProjectG.ApplicationLayer.Services
             isFailed = null;
             isClickable = null;
             cancelingLoadedEnteredUtc = null;
+            ResetDynamicAhFlowSession();
             if (TSMWindow.AHBorder != null && await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.AHMenu) || (TSMWindow.MailBoxBorder != null && await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.MailBox)))
             {
                 await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.ESCAPE);
@@ -576,6 +684,50 @@ namespace ProjectG.ApplicationLayer.Services
         {
             var settings = NtfySettingsStore.Load();
             cancelingLoadedExtraThreshold = TimeSpan.FromSeconds(Math.Max(0, settings.CancelingLoadedExtraThresholdSeconds));
+        }
+
+        void ResetDynamicAhFlowSession()
+        {
+            _dynamicAhFlowVariant = DynamicAhFlowVariant.None;
+            _dynamicAhFlowLocked = false;
+            _dynamicAhPostFirstExitExpectCancel = false;
+            _dynamicAhV2MailboxAfterSecondPost = false;
+            _dynamicAhForceMailboxPostingDone = false;
+        }
+
+        /// <summary>Taban V1=22, V2=38, V3=28, V4=12 yüzde + küçük jitter; normalize edilip tek seçim.</summary>
+        static DynamicAhFlowVariant PickDynamicAhFlowVariantWeighted()
+        {
+            double w1 = 22 + Random.Shared.Next(-3, 4);
+            double w2 = 38 + Random.Shared.Next(-3, 4);
+            double w3 = 28 + Random.Shared.Next(-3, 4);
+            double w4 = 12 + Random.Shared.Next(-3, 4);
+            w1 = Math.Max(1, w1);
+            w2 = Math.Max(1, w2);
+            w3 = Math.Max(1, w3);
+            w4 = Math.Max(1, w4);
+            double sum = w1 + w2 + w3 + w4;
+            double r = Random.Shared.NextDouble() * sum;
+            if (r < w1)
+                return DynamicAhFlowVariant.ClassicCancelFirst;
+            r -= w1;
+            if (r < w2)
+                return DynamicAhFlowVariant.PostDelayCancelPost;
+            r -= w2;
+            if (r < w3)
+                return DynamicAhFlowVariant.PostThenCancel;
+            return DynamicAhFlowVariant.PostDelayThenCancel;
+        }
+
+        bool ShouldInterceptPostingDoneForDynamicAhFlow()
+        {
+            if (!AppSettings.DynamicAhFlow)
+                return false;
+            if (_dynamicAhV2MailboxAfterSecondPost)
+                return false;
+            return _dynamicAhFlowVariant == DynamicAhFlowVariant.PostDelayCancelPost
+                || _dynamicAhFlowVariant == DynamicAhFlowVariant.PostThenCancel
+                || _dynamicAhFlowVariant == DynamicAhFlowVariant.PostDelayThenCancel;
         }
 
         private async Task ManageDualClient()

@@ -88,7 +88,14 @@ namespace ProjectG.ApplicationLayer.Services
             switch (AppSettings.CycleDowntime)
             {
                 case CycleDowntime.Short:
-                    return Random.Shared.Next(15000, 25000);
+                {
+                    int[] r = AppSettings.DynamicShortCycleDowntimeMs;
+                    if (r is null || r.Length < 2)
+                        return Random.Shared.Next(15000, 25001);
+                    int lo = Math.Clamp(r[0], 1000, 120_000);
+                    int hi = Math.Max(lo + 1, Math.Clamp(r[1], lo + 1, 120_000));
+                    return Random.Shared.Next(lo, hi + 1);
+                }
                 case CycleDowntime.ShortMedium:
                     return Random.Shared.Next(35000, 65000);
                 case CycleDowntime.Medium:

@@ -46,6 +46,7 @@ namespace ProjectG
             groupBox2 = new GroupBox();
             LblState = new Label();
             cBoxDualClient = new CheckBox();
+            cBoxDynamic = new CheckBox();
             groupBoxInternet = new GroupBox();
             LblInternetStatus = new Label();
             TimerInternetUi = new System.Windows.Forms.Timer(components);
@@ -247,6 +248,16 @@ namespace ProjectG
             cBoxDualClient.Text = "DualClient";
             cBoxDualClient.UseVisualStyleBackColor = true;
             // 
+            // cBoxDynamic
+            // 
+            cBoxDynamic.AutoSize = true;
+            cBoxDynamic.Location = new Point(385, 42);
+            cBoxDynamic.Name = "cBoxDynamic";
+            cBoxDynamic.Size = new Size(68, 19);
+            cBoxDynamic.TabIndex = 12;
+            cBoxDynamic.Text = "Dynamic";
+            cBoxDynamic.UseVisualStyleBackColor = true;
+            // 
             // groupBoxInternet
             // 
             groupBoxInternet.Controls.Add(LblInternetStatus);
@@ -294,6 +305,7 @@ namespace ProjectG
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(465, 138);
             Controls.Add(btnSettings);
+            Controls.Add(cBoxDynamic);
             Controls.Add(cBoxDualClient);
             Controls.Add(groupBoxInternet);
             Controls.Add(groupBox2);
@@ -338,6 +350,7 @@ namespace ProjectG
         private GroupBox groupBox2;
         private Label LblState;
         private CheckBox cBoxDualClient;
+        private CheckBox cBoxDynamic;
         private GroupBox groupBoxInternet;
         private Label LblInternetStatus;
         private System.Windows.Forms.Timer TimerInternetUi;

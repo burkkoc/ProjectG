@@ -265,12 +265,44 @@ namespace ProjectG.ApplicationLayer.Services
         static async Task<bool> SendScreenshotToNtfyAsync(byte[] png, CancellationToken ct)
         {
             const string flow = "ntfy-send-flow";
+            var title = BuildReconnectNotificationTitle();
+            var message = "link:";
+            return await SendScreenshotPayloadToNtfyAsync(png, title, message, flow, ct).ConfigureAwait(false);
+        }
+
+        public static async Task<bool> SendScreenshotNotificationAsync(string title, string message, CancellationToken ct = default)
+        {
+            const string flow = "ntfy-manual-screenshot-flow";
+            try
+            {
+                var payload = await CaptureScreenPayloadAsync(ct).ConfigureAwait(false);
+                return await SendScreenshotPayloadToNtfyAsync(payload, title, message, flow, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                LogNtfyDebug(flow, "cancelled");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                LogNtfyDebug(flow, $"exception {ex.GetType().Name}: {ex.Message}");
+                return false;
+            }
+        }
+
+        static async Task<bool> SendScreenshotPayloadToNtfyAsync(
+            byte[] payload,
+            string title,
+            string messagePrefix,
+            string flow,
+            CancellationToken ct)
+        {
             try
             {
                 LogNtfyDebug(flow, $"start notify='{_ntfyNotifyTopicUrl}' upload='{_ntfyFileUploadTopicUrl}'");
-                LogNtfyDebug(flow, $"capture-ok bytes={png.Length}");
+                LogNtfyDebug(flow, $"capture-ok bytes={payload.Length}");
 
-                using var content = new ByteArrayContent(png);
+                using var content = new ByteArrayContent(payload);
                 content.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
                 using var putReq = new HttpRequestMessage(HttpMethod.Put, _ntfyFileUploadTopicUrl) { Content = content };
                 putReq.Headers.TryAddWithoutValidation("Filename", NtfyUploadFilename);
@@ -289,9 +321,9 @@ namespace ProjectG.ApplicationLayer.Services
 
                 using var postReq = new HttpRequestMessage(HttpMethod.Post, _ntfyNotifyTopicUrl);
                 postReq.Headers.TryAddWithoutValidation("Click", fileUrl);
-                postReq.Headers.TryAddWithoutValidation("Title", BuildReconnectNotificationTitle());
+                postReq.Headers.TryAddWithoutValidation("Title", SanitizeAsciiHeaderValue(title));
                 postReq.Content = new StringContent(
-                    $"link: {fileUrl}",
+                    $"{messagePrefix} {fileUrl}",
                     Encoding.UTF8,
                     "text/plain");
 

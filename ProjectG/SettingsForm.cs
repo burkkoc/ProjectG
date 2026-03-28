@@ -21,6 +21,7 @@ namespace ProjectG.PresentationLayer
 
         void btnSave_Click(object? sender, EventArgs e)
         {
+            var settings = NtfySettingsStore.Load();
             var url = txtNtfyNotifyUrl.Text.Trim();
             if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
                 || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
@@ -89,14 +90,11 @@ namespace ProjectG.PresentationLayer
                 return;
             }
 
-            var settings = new NtfyUserSettings
-            {
-                NtfyNotifyTopicUrl = normalized,
-                MailboxLocateHotkey = mailboxKeyText.ToUpperInvariant(),
-                RestockMaxNotificationCount = maxRestockNotificationCount,
-                RestockThresholdPercent = restockThresholdPercent,
-                CancelingLoadedExtraThresholdSeconds = cancelingLoadedExtraThresholdSeconds
-            };
+            settings.NtfyNotifyTopicUrl = normalized;
+            settings.MailboxLocateHotkey = mailboxKeyText.ToUpperInvariant();
+            settings.RestockMaxNotificationCount = maxRestockNotificationCount;
+            settings.RestockThresholdPercent = restockThresholdPercent;
+            settings.CancelingLoadedExtraThresholdSeconds = cancelingLoadedExtraThresholdSeconds;
             NtfySettingsStore.Save(settings);
             InternetConnectivityMonitor.ApplyNtfyUrls(normalized);
             DialogResult = DialogResult.OK;

@@ -11,6 +11,8 @@ namespace ProjectG
         private readonly MacroService _macroService;
         private UIHelper _uiHelper;
         private Keys _mailboxLocateKey = Keys.Z;
+        private bool _isLoadingCustomDowntimeSettings;
+        private bool _isLoadingCycleDowntimeSelection;
         public PG(MacroService macroService)
         {
             InitializeComponent();
@@ -19,6 +21,14 @@ namespace ProjectG
             _uiHelper.Initiate();
             this.KeyPreview = true;
             LoadMailboxHotkeyFromSettings();
+            LoadCustomDowntimeFromSettings();
+            LoadSelectedCycleDowntimeFromSettings();
+            numericCustomDowntimeMinSec.ValueChanged += CustomDowntimeInput_ValueChanged;
+            numericCustomDowntimeMaxSec.ValueChanged += CustomDowntimeInput_ValueChanged;
+            RadioShort.CheckedChanged += CycleDowntimeRadio_CheckedChanged;
+            RadioMedium.CheckedChanged += CycleDowntimeRadio_CheckedChanged;
+            RadioShortMedium.CheckedChanged += CycleDowntimeRadio_CheckedChanged;
+            RadioCustom.CheckedChanged += CycleDowntimeRadio_CheckedChanged;
 
             //Paths.PostCancelImagePath = UtilityService.GetDirectory(ActiveWindow.PostCancel);
             //Paths.AHMenuImagePath = UtilityService.GetDirectory(ActiveWindow.AHMenu);
@@ -161,6 +171,100 @@ namespace ProjectG
             AppSettings.CustomCycleDowntimeMs = [minSec * 1000, maxSec * 1000];
         }
 
+        private void LoadCustomDowntimeFromSettings()
+        {
+            _isLoadingCustomDowntimeSettings = true;
+            try
+            {
+                var settings = NtfySettingsStore.Load();
+                int minAllowed = (int)numericCustomDowntimeMinSec.Minimum;
+                int minMaxAllowed = (int)numericCustomDowntimeMinSec.Maximum;
+                int maxMinAllowed = (int)numericCustomDowntimeMaxSec.Minimum;
+                int maxAllowed = (int)numericCustomDowntimeMaxSec.Maximum;
+                int minSec = Math.Clamp(settings.CustomDowntimeMinSeconds, minAllowed, minMaxAllowed);
+                int maxSec = Math.Clamp(settings.CustomDowntimeMaxSeconds, maxMinAllowed, maxAllowed);
+
+                if (minSec >= maxSec)
+                {
+                    maxSec = Math.Min(maxAllowed, minSec + 1);
+                    if (minSec >= maxSec)
+                        minSec = Math.Max(minAllowed, maxSec - 1);
+                }
+
+                numericCustomDowntimeMinSec.Value = minSec;
+                numericCustomDowntimeMaxSec.Value = maxSec;
+                ApplyCustomDowntimeFromUi();
+            }
+            finally
+            {
+                _isLoadingCustomDowntimeSettings = false;
+            }
+        }
+
+        private void SaveCustomDowntimeToSettings()
+        {
+            var settings = NtfySettingsStore.Load();
+            settings.CustomDowntimeMinSeconds = (int)numericCustomDowntimeMinSec.Value;
+            settings.CustomDowntimeMaxSeconds = (int)numericCustomDowntimeMaxSec.Value;
+            NtfySettingsStore.Save(settings);
+        }
+
+        private void CustomDowntimeInput_ValueChanged(object? sender, EventArgs e)
+        {
+            if (_isLoadingCustomDowntimeSettings)
+                return;
+
+            ApplyCustomDowntimeFromUi();
+            RadioCustom.Checked = true;
+            SaveCustomDowntimeToSettings();
+        }
+
+        private void LoadSelectedCycleDowntimeFromSettings()
+        {
+            _isLoadingCycleDowntimeSelection = true;
+            try
+            {
+                var selected = NtfySettingsStore.Load().SelectedCycleDowntime;
+                switch (selected?.Trim().ToLowerInvariant())
+                {
+                    case "medium":
+                        RadioMedium.Checked = true;
+                        break;
+                    case "shortmedium":
+                        RadioShortMedium.Checked = true;
+                        break;
+                    case "custom":
+                        RadioCustom.Checked = true;
+                        break;
+                    default:
+                        RadioShort.Checked = true;
+                        break;
+                }
+            }
+            finally
+            {
+                _isLoadingCycleDowntimeSelection = false;
+            }
+        }
+
+        private void SaveSelectedCycleDowntimeToSettings()
+        {
+            var settings = NtfySettingsStore.Load();
+            settings.SelectedCycleDowntime = RadioShort.Checked ? "Short"
+                : RadioMedium.Checked ? "Medium"
+                : RadioShortMedium.Checked ? "ShortMedium"
+                : "Custom";
+            NtfySettingsStore.Save(settings);
+        }
+
+        private void CycleDowntimeRadio_CheckedChanged(object? sender, EventArgs e)
+        {
+            if (_isLoadingCycleDowntimeSelection || sender is not RadioButton radio || !radio.Checked)
+                return;
+
+            SaveSelectedCycleDowntimeToSettings();
+        }
+
         private void SetCustomDowntimeInputsEnabled(bool enabled)
         {
             numericCustomDowntimeMinSec.Enabled = enabled;
@@ -174,8 +278,8 @@ namespace ProjectG
             {
                 btnStart.Text = "Stop";
                 AppSettings.Working = true;
-                if (cBoxDualClient.Checked)
-                    AppSettings.DualClient = true;
+                AppSettings.DualClient = cBoxDualClient.Checked;
+                AppSettings.DynamicAhFlow = cBoxDynamic.Checked;
                 ApplyCustomDowntimeFromUi();
                 _uiHelper.SetCycleDowntime();
 

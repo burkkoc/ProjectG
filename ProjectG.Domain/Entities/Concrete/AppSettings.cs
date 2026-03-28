@@ -16,6 +16,12 @@ namespace ProjectG.DomainLayer.Entities.Concrete
         /// <summary>Özel (Custom) döngü arası rastgele bekleme aralığı, milisaniye [min, max].</summary>
         public static int[] CustomCycleDowntimeMs { get; set; } = [120000, 180000];
 
+        /// <summary>
+        /// <see cref="CycleDowntime.Short"/> için döngü arası bekleme [min, max] ms.
+        /// RunCancelButtonClicked → CancelingDone süresine göre güncellenir; varsayılan 15–25 sn.
+        /// </summary>
+        public static int[] DynamicShortCycleDowntimeMs { get; set; } = [15000, 25000];
+
         public static int[] AHShowsUpDowntime { get; set; } = [1, 10]; //AH açıldıktan sonra, sıradaki işlemle arasındaki süre
 
         public static int[] PostOrCancelDowntime { get; set; } = [1, 3]; //Post ya da cancel ekranları tamamen yüklendikten sonra
@@ -42,6 +48,9 @@ namespace ProjectG.DomainLayer.Entities.Concrete
 
         public static int[] MailBoxShowsUpDowntime { get; set; } = [1, 4]; //Mailbox ekranı tespit edilmesiyle sıradaki olayın işleme alınması arasındaki süre
         public static bool DualClient { get; set; } = false;
+
+        /// <summary>AH menüde cancel/post sırası için ağırlıklı rastgele varyantlar; kapalıyısa her zaman önce cancel.</summary>
+        public static bool DynamicAhFlow { get; set; } = false;
         //if mailboxrandomizedpossibility is true
         public static bool MailBoxCloseRandomize { get; set; }
 
@@ -65,7 +74,7 @@ namespace ProjectG.DomainLayer.Entities.Concrete
             MailBoxPosition = null;
             ActiveButtonColor = null;
             State = State.OnCycleDowntime;
-
+            DynamicShortCycleDowntimeMs = [15000, 25000];
         }
 
 

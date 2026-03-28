@@ -19,6 +19,8 @@ namespace ProjectG.ApplicationLayer.Services
 
         /// <summary><see cref="State.OnCycleDowntime"/> içinde uzun beklemeler (cycle downtime vb.) için üst sınır.</summary>
         static readonly TimeSpan StallTimeoutOnCycleDowntime = TimeSpan.FromMinutes(18);
+        static readonly TimeSpan RunPostMissingNotifyThreshold = TimeSpan.FromMinutes(10);
+        static readonly TimeSpan RunPostMissingNotifyRetryBackoff = TimeSpan.FromMinutes(1);
 
         SimulateService _simulateService = new();
         StateHandlerService _stateHandlerService;
@@ -27,13 +29,16 @@ namespace ProjectG.ApplicationLayer.Services
         readonly Dictionary<State, TimeSpan> _stateTotalDurations = new();
         readonly object _stateDurationGate = new();
         int? _dynamicRestockThresholdSec;
-        int? _baselineCombinedSec;
-        int? _lastNotifiedCombinedSec;
-        TimeSpan _pendingPostFlowDuration = TimeSpan.Zero;
+        int? _baselineRunPostSec;
+        int? _lastNotifiedRunPostSec;
         readonly object _restockLogGate = new();
         double _restockThresholdRatio = 0.90;
         int _restockMaxNotificationCount = 3;
         int _restockNotificationSentCount;
+        DateTime _lastRunPostButtonClickedEnteredUtc = DateTime.UtcNow;
+        bool _runPostMissingNotificationSent;
+        DateTime _nextRunPostMissingNotifyAttemptUtc = DateTime.MinValue;
+        DateTime? _cancelFlowStartedUtc;
 
         public MacroService()
         {
@@ -53,29 +58,46 @@ namespace ProjectG.ApplicationLayer.Services
         {
             LoadRestockSettings();
             AppSettings.State = State.OnCycleDowntime;
+            _lastRunPostButtonClickedEnteredUtc = DateTime.UtcNow;
+            _runPostMissingNotificationSent = false;
+            _nextRunPostMissingNotifyAttemptUtc = DateTime.MinValue;
+            _cancelFlowStartedUtc = null;
             await Task.Run(async () =>
             {
                 while (AppSettings.Working)
                 {
                     var currentState = AppSettings.State;
+                    var nowUtc = DateTime.UtcNow;
                     if (_watchdogLastState != currentState)
                     {
                         if (_watchdogLastState.HasValue)
-                            await HandleStateExitAsync(_watchdogLastState.Value, DateTime.UtcNow - _watchdogStateEnteredUtc);
+                            await HandleStateExitAsync(_watchdogLastState.Value, nowUtc - _watchdogStateEnteredUtc, nowUtc);
                         _watchdogLastState = currentState;
-                        _watchdogStateEnteredUtc = DateTime.UtcNow;
+                        _watchdogStateEnteredUtc = nowUtc;
+                        if (currentState == State.RunPostButtonClicked)
+                        {
+                            _lastRunPostButtonClickedEnteredUtc = nowUtc;
+                            _runPostMissingNotificationSent = false;
+                            _nextRunPostMissingNotifyAttemptUtc = DateTime.MinValue;
+                        }
+                        if (currentState == State.RunCancelButtonClicked)
+                            _cancelFlowStartedUtc = nowUtc;
+                        if (currentState == State.WaitingForLoadingCanceling)
+                            _cancelFlowStartedUtc ??= nowUtc;
                     }
                     else
                     {
                         var limit = StallTimeoutForState(currentState);
-                        if (limit > TimeSpan.Zero && DateTime.UtcNow - _watchdogStateEnteredUtc > limit)
+                        if (limit > TimeSpan.Zero && nowUtc - _watchdogStateEnteredUtc > limit)
                         {
                             await _stateHandlerService.RecoverFromStallAsync();
                             _watchdogLastState = AppSettings.State;
-                            _watchdogStateEnteredUtc = DateTime.UtcNow;
+                            _watchdogStateEnteredUtc = nowUtc;
                             continue;
                         }
                     }
+
+                    await TryNotifyRunPostMissingAsync(currentState, nowUtc);
 
                     switch (AppSettings.State)
                     {
@@ -150,7 +172,38 @@ namespace ProjectG.ApplicationLayer.Services
 
         }
 
-        async Task HandleStateExitAsync(State exitedState, TimeSpan elapsed)
+        async Task TryNotifyRunPostMissingAsync(State currentState, DateTime nowUtc)
+        {
+            if (_runPostMissingNotificationSent || nowUtc < _nextRunPostMissingNotifyAttemptUtc)
+                return;
+
+            var elapsed = nowUtc - _lastRunPostButtonClickedEnteredUtc;
+            if (elapsed < RunPostMissingNotifyThreshold)
+                return;
+
+            var title = $"probably dc | {Environment.MachineName}";
+            var message =
+                $"RunPostButtonClicked state'ine {Math.Floor(elapsed.TotalMinutes)} dakikadir girilemedi. " +
+                $"Current state: {currentState}.";
+            LogRestockFlow($"runpost-missing notify trigger: elapsed={elapsed.TotalMinutes:F1}m, state={currentState}");
+
+            bool sent = await InternetConnectivityMonitor
+                .SendScreenshotNotificationAsync(title, message)
+                .ConfigureAwait(false);
+
+            if (sent)
+            {
+                _runPostMissingNotificationSent = true;
+                LogRestockFlow("runpost-missing notify result: success");
+            }
+            else
+            {
+                _nextRunPostMissingNotifyAttemptUtc = nowUtc + RunPostMissingNotifyRetryBackoff;
+                LogRestockFlow($"runpost-missing notify result: failed; retry at {_nextRunPostMissingNotifyAttemptUtc:HH:mm:ss}");
+            }
+        }
+
+        async Task HandleStateExitAsync(State exitedState, TimeSpan elapsed, DateTime transitionUtc)
         {
             lock (_stateDurationGate)
             {
@@ -160,26 +213,26 @@ namespace ProjectG.ApplicationLayer.Services
                     _stateTotalDurations[exitedState] = elapsed;
             }
 
-            if (exitedState == State.RunPostButtonClicked || exitedState == State.WaitingForLoadingPosting)
+            if (exitedState == State.CancelingDone && _cancelFlowStartedUtc.HasValue)
             {
-                _pendingPostFlowDuration += elapsed;
-                LogRestockFlow($"accumulate {exitedState}: +{elapsed.TotalSeconds:F2}s, pending={_pendingPostFlowDuration.TotalSeconds:F2}s");
+                var cancelPhase = transitionUtc - _cancelFlowStartedUtc.Value;
+                _cancelFlowStartedUtc = null;
+                if (cancelPhase >= TimeSpan.Zero)
+                    ApplyCancelPhaseToDynamicShortDowntime(cancelPhase);
             }
 
-            if (exitedState == State.PostingLoaded)
+            if (exitedState == State.RunPostButtonClicked)
             {
-                var combined = _pendingPostFlowDuration + elapsed;
-                _pendingPostFlowDuration = TimeSpan.Zero;
-                int combinedSec = (int)Math.Floor(combined.TotalSeconds);
-                LogRestockFlow($"PostingLoaded exit: elapsed={elapsed.TotalSeconds:F2}s, combined={combined.TotalSeconds:F2}s ({combinedSec}s)");
+                int runPostSec = (int)Math.Floor(elapsed.TotalSeconds);
+                LogRestockFlow($"RunPostButtonClicked exit: elapsed={elapsed.TotalSeconds:F2}s ({runPostSec}s)");
 
                 if (!_dynamicRestockThresholdSec.HasValue)
                 {
-                    _baselineCombinedSec = combinedSec;
-                    _dynamicRestockThresholdSec = (int)Math.Floor(combinedSec * _restockThresholdRatio);
-                    LogRestockFlow($"threshold initialized from first combined: baseline={_baselineCombinedSec.Value}s, threshold={_dynamicRestockThresholdSec.Value}s");
+                    _baselineRunPostSec = runPostSec;
+                    _dynamicRestockThresholdSec = (int)Math.Floor(runPostSec * _restockThresholdRatio);
+                    LogRestockFlow($"threshold initialized from first runpost: baseline={_baselineRunPostSec.Value}s, threshold={_dynamicRestockThresholdSec.Value}s");
                 }
-                else if (combinedSec <= _dynamicRestockThresholdSec.Value)
+                else if (runPostSec <= _dynamicRestockThresholdSec.Value)
                 {
                     if (_restockNotificationSentCount >= _restockMaxNotificationCount)
                     {
@@ -187,40 +240,56 @@ namespace ProjectG.ApplicationLayer.Services
                         return;
                     }
 
-                    string title = "Restock detected";
+                    string title = $"Restock detected | {Environment.MachineName}";
                     int shorterPercent = 0;
-                    if (_baselineCombinedSec.HasValue && _baselineCombinedSec.Value > 0)
+                    int baselineSec = _baselineRunPostSec ?? runPostSec;
+                    if (_baselineRunPostSec.HasValue && _baselineRunPostSec.Value > 0)
                     {
-                        double diffRatio = (_baselineCombinedSec.Value - combinedSec) / (double)_baselineCombinedSec.Value;
+                        double diffRatio = (_baselineRunPostSec.Value - runPostSec) / (double)_baselineRunPostSec.Value;
                         shorterPercent = (int)Math.Round(Math.Max(0, diffRatio) * 100, MidpointRounding.AwayFromZero);
                     }
 
                     string message =
-                        $"RunPostButtonClicked+WaitingForLoadingPosting+PostingLoaded: {combinedSec}s, threshold: {_dynamicRestockThresholdSec.Value}s. " +
-                        $"Normal suresinden yaklasik %{shorterPercent} daha kisaydi.";
-                    LogRestockFlow($"triggered notify: combined={combinedSec}s <= threshold={_dynamicRestockThresholdSec.Value}s");
+                        $"RunPostButtonClicked: {runPostSec}s, threshold: {_dynamicRestockThresholdSec.Value}s. " +
+                        $"Normal suresinden yaklasik %{shorterPercent} daha kisaydi. ({baselineSec}s -> {runPostSec}s)";
+                    LogRestockFlow($"triggered notify: runpost={runPostSec}s <= threshold={_dynamicRestockThresholdSec.Value}s");
                     bool sent = await InternetConnectivityMonitor.SendTextNotificationAsync(title, message).ConfigureAwait(false);
                     if (sent)
                     {
                         _restockNotificationSentCount++;
-                        _lastNotifiedCombinedSec = combinedSec;
-                        _dynamicRestockThresholdSec = (int)Math.Floor(_lastNotifiedCombinedSec.Value * 0.90);
-                        LogRestockFlow($"next threshold from last notify: last={_lastNotifiedCombinedSec.Value}s, nextThreshold={_dynamicRestockThresholdSec.Value}s");
+                        _lastNotifiedRunPostSec = runPostSec;
+                        _dynamicRestockThresholdSec = (int)Math.Floor(_lastNotifiedRunPostSec.Value * 0.90);
+                        LogRestockFlow($"next threshold from last notify: last={_lastNotifiedRunPostSec.Value}s, nextThreshold={_dynamicRestockThresholdSec.Value}s");
                     }
                     LogRestockFlow($"notify result: {(sent ? "success" : "failed")}");
                 }
                 else
                 {
-                    LogRestockFlow($"no notify: combined={combinedSec}s > threshold={_dynamicRestockThresholdSec.Value}s");
+                    LogRestockFlow($"no notify: runpost={runPostSec}s > threshold={_dynamicRestockThresholdSec.Value}s");
                 }
             }
-            else if (exitedState != State.RunPostButtonClicked && exitedState != State.WaitingForLoadingPosting)
-            {
-                // Akış beklenmedik state ile kırıldıysa eski süreyi taşımayalım.
-                if (_pendingPostFlowDuration > TimeSpan.Zero)
-                    LogRestockFlow($"flow reset at state={exitedState}, pending was {_pendingPostFlowDuration.TotalSeconds:F2}s");
-                _pendingPostFlowDuration = TimeSpan.Zero;
-            }
+        }
+
+        /// <summary>
+        /// RunCancelButtonClicked girişinden CancelingDone çıkışına kadar süre T (sn) ise sonraki Short cycle downtime
+        /// yaklaşık [2T, 2T+10] sn; alt sınır 15–25 sn bandına, üst sınır 100–120 sn bandına sıkıştırılır.
+        /// </summary>
+        void ApplyCancelPhaseToDynamicShortDowntime(TimeSpan cancelPhaseDuration)
+        {
+            double sec = Math.Max(0, cancelPhaseDuration.TotalSeconds);
+            int rawMinMs = (int)Math.Round(2 * sec * 1000.0);
+            int rawMaxMs = (int)Math.Round((2 * sec + 10) * 1000.0);
+            const int minClampLo = 15_000;
+            const int minClampHi = 100_000;
+            const int maxClampLo = 25_000;
+            const int maxClampHi = 120_000;
+            int minMs = Math.Clamp(rawMinMs, minClampLo, minClampHi);
+            int maxMs = Math.Clamp(rawMaxMs, maxClampLo, maxClampHi);
+            if (maxMs <= minMs)
+                maxMs = Math.Min(maxClampHi, minMs + 10_000);
+            AppSettings.DynamicShortCycleDowntimeMs = [minMs, maxMs];
+            LogRestockFlow(
+                $"dynamic short downtime: cancel phase {cancelPhaseDuration.TotalSeconds:F1}s -> [{minMs},{maxMs}]ms (raw [{rawMinMs},{rawMaxMs}]ms)");
         }
 
         void LoadRestockSettings()
