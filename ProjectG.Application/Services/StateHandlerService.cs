@@ -54,7 +54,7 @@ namespace ProjectG.ApplicationLayer.Services
             {
                 if (await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.AHMenu))
                 {
-                    await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.ESCAPE);
+                    //await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.ESCAPE);
                     await Task.Delay(UtilityService.GenerateRandom(120, 280));
                 }
 
@@ -279,7 +279,7 @@ namespace ProjectG.ApplicationLayer.Services
                     isFailed = null;
                     AppSettings.State = State.PostingDone;
                 }
-                else await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
+                // else await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
             }
             catch
             {
@@ -403,7 +403,20 @@ namespace ProjectG.ApplicationLayer.Services
 
                 if (await PixelProcessService.IsClickable(StaticTSMButtons.OpenAllMailButton, false))
                 {
-                    await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.ESCAPE);
+                    bool onlyMailBoxOpen = await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.MailBox)
+                        && !await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.AHMenu);
+                    // Posta sonrası her seferinde kapatma değil: eşik jitter’lı; önce kısa veya daha uzun bekleme.
+                    int closeChanceThreshold = UtilityService.GenerateRandom(30, 48);
+                    int longPauseThreshold = UtilityService.GenerateRandom(26, 40);
+                    if (onlyMailBoxOpen && Random.Shared.Next(100) < closeChanceThreshold)
+                    {
+                        if (Random.Shared.Next(100) < longPauseThreshold)
+                            await Task.Delay(UtilityService.GenerateRandom(1200, 2901));
+                        else
+                            await Task.Delay(UtilityService.GenerateRandom(280, 1050));
+
+                        await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.ESCAPE, allowPossibleSecondTap: false);
+                    }
 
                     if (AppSettings.DualClient)
                         await _simulateService.SwitchWindow();
@@ -637,7 +650,7 @@ namespace ProjectG.ApplicationLayer.Services
                     TrySetFirstCancelingLoadedDuration();
                     cancelingLoadedEnteredUtc = null;
                 }
-                else await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
+                // else await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
 
             }
             catch
@@ -667,10 +680,10 @@ namespace ProjectG.ApplicationLayer.Services
             isClickable = null;
             cancelingLoadedEnteredUtc = null;
             ResetDynamicAhFlowSession();
-            if (TSMWindow.AHBorder != null && await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.AHMenu) || (TSMWindow.MailBoxBorder != null && await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.MailBox)))
-            {
-                await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.ESCAPE);
-            }
+            //if (TSMWindow.AHBorder != null && await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.AHMenu) || (TSMWindow.MailBoxBorder != null && await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.MailBox)))
+            //{
+            //    await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.ESCAPE);
+            //}
         }
 
         private void TrySetFirstCancelingLoadedDuration()

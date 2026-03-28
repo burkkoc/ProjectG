@@ -179,7 +179,8 @@ namespace ProjectG.ApplicationLayer.Services
         /// <summary>
         /// Makro döngüsünde sık basılan tuş için değişken ön/son bekleme ve basılı tutma; nadiren kısa ikinci dokunuş.
         /// </summary>
-        public async Task<bool> SendHumanizedMacroKey(VirtualKeyCode vkCode)
+        /// <param name="allowPossibleSecondTap">false: tek basış (ör. ESC ile pencere kapatma).</param>
+        public async Task<bool> SendHumanizedMacroKey(VirtualKeyCode vkCode, bool allowPossibleSecondTap = true)
         {
             await Task.Delay(UtilityService.GenerateRandom(40, 221));
 
@@ -191,7 +192,7 @@ namespace ProjectG.ApplicationLayer.Services
                 _inputSimulator.Keyboard.Sleep(beforeDown).KeyDown(vkCode).Sleep(holdMs).KeyUp(vkCode).Sleep(afterUp);
             });
 
-            if (Random.Shared.Next(100) < 7)
+            if (allowPossibleSecondTap && Random.Shared.Next(100) < 7)
             {
                 await Task.Delay(UtilityService.GenerateRandom(50, 181));
                 holdMs = UtilityService.GenerateRandom(18, 56);
