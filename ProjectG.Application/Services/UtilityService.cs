@@ -92,8 +92,8 @@ namespace ProjectG.ApplicationLayer.Services
                     int[] r = AppSettings.DynamicShortCycleDowntimeMs;
                     if (r is null || r.Length < 2)
                         return Random.Shared.Next(15000, 25001);
-                    int lo = Math.Clamp(r[0], 1000, 120_000);
-                    int hi = Math.Max(lo + 1, Math.Clamp(r[1], lo + 1, 120_000));
+                    int lo = Math.Max(1000, r[0]);
+                    int hi = Math.Max(lo + 1, r[1]);
                     return Random.Shared.Next(lo, hi + 1);
                 }
                 case CycleDowntime.ShortMedium:

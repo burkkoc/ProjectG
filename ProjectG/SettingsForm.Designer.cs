@@ -27,6 +27,13 @@ namespace ProjectG.PresentationLayer
             txtRestockThresholdPercent = new TextBox();
             lblCancelingLoadedExtraThresholdSeconds = new Label();
             txtCancelingLoadedExtraThresholdSeconds = new TextBox();
+            lblDynamicShortSection = new Label();
+            lblDynamicShortMinTMult = new Label();
+            txtDynamicShortMinTMult = new TextBox();
+            lblDynamicShortMaxTMult = new Label();
+            txtDynamicShortMaxTMult = new TextBox();
+            lblDynamicShortMaxExtraSec = new Label();
+            txtDynamicShortMaxExtraSec = new TextBox();
             btnSave = new Button();
             btnCancel = new Button();
             SuspendLayout();
@@ -112,10 +119,68 @@ namespace ProjectG.PresentationLayer
             txtCancelingLoadedExtraThresholdSeconds.Size = new Size(100, 23);
             txtCancelingLoadedExtraThresholdSeconds.TabIndex = 9;
             //
+            // lblDynamicShortSection
+            //
+            lblDynamicShortSection.AutoSize = true;
+            lblDynamicShortSection.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold, GraphicsUnit.Point);
+            lblDynamicShortSection.Location = new Point(12, 258);
+            lblDynamicShortSection.Name = "lblDynamicShortSection";
+            lblDynamicShortSection.Size = new Size(420, 13);
+            lblDynamicShortSection.TabIndex = 12;
+            lblDynamicShortSection.Text = "Short dinamik downtime (T = cancel yukleme suresi, sn)";
+            //
+            // lblDynamicShortMinTMult
+            //
+            lblDynamicShortMinTMult.AutoSize = true;
+            lblDynamicShortMinTMult.Location = new Point(12, 278);
+            lblDynamicShortMinTMult.Name = "lblDynamicShortMinTMult";
+            lblDynamicShortMinTMult.Size = new Size(200, 15);
+            lblDynamicShortMinTMult.TabIndex = 13;
+            lblDynamicShortMinTMult.Text = "Min bekleme: T ×";
+            //
+            // txtDynamicShortMinTMult
+            //
+            txtDynamicShortMinTMult.Location = new Point(200, 275);
+            txtDynamicShortMinTMult.Name = "txtDynamicShortMinTMult";
+            txtDynamicShortMinTMult.Size = new Size(72, 23);
+            txtDynamicShortMinTMult.TabIndex = 14;
+            //
+            // lblDynamicShortMaxTMult
+            //
+            lblDynamicShortMaxTMult.AutoSize = true;
+            lblDynamicShortMaxTMult.Location = new Point(12, 306);
+            lblDynamicShortMaxTMult.Name = "lblDynamicShortMaxTMult";
+            lblDynamicShortMaxTMult.Size = new Size(200, 15);
+            lblDynamicShortMaxTMult.TabIndex = 15;
+            lblDynamicShortMaxTMult.Text = "Max bekleme: T ×";
+            //
+            // txtDynamicShortMaxTMult
+            //
+            txtDynamicShortMaxTMult.Location = new Point(200, 303);
+            txtDynamicShortMaxTMult.Name = "txtDynamicShortMaxTMult";
+            txtDynamicShortMaxTMult.Size = new Size(72, 23);
+            txtDynamicShortMaxTMult.TabIndex = 16;
+            //
+            // lblDynamicShortMaxExtraSec
+            //
+            lblDynamicShortMaxExtraSec.AutoSize = true;
+            lblDynamicShortMaxExtraSec.Location = new Point(290, 306);
+            lblDynamicShortMaxExtraSec.Name = "lblDynamicShortMaxExtraSec";
+            lblDynamicShortMaxExtraSec.Size = new Size(95, 15);
+            lblDynamicShortMaxExtraSec.TabIndex = 17;
+            lblDynamicShortMaxExtraSec.Text = "+ ek (sn)";
+            //
+            // txtDynamicShortMaxExtraSec
+            //
+            txtDynamicShortMaxExtraSec.Location = new Point(385, 303);
+            txtDynamicShortMaxExtraSec.Name = "txtDynamicShortMaxExtraSec";
+            txtDynamicShortMaxExtraSec.Size = new Size(72, 23);
+            txtDynamicShortMaxExtraSec.TabIndex = 18;
+            //
             // btnSave
             //
             btnSave.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnSave.Location = new Point(332, 263);
+            btnSave.Location = new Point(332, 348);
             btnSave.Name = "btnSave";
             btnSave.Size = new Size(75, 28);
             btnSave.TabIndex = 10;
@@ -126,7 +191,7 @@ namespace ProjectG.PresentationLayer
             // btnCancel
             //
             btnCancel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnCancel.Location = new Point(413, 263);
+            btnCancel.Location = new Point(413, 348);
             btnCancel.Name = "btnCancel";
             btnCancel.Size = new Size(75, 28);
             btnCancel.TabIndex = 11;
@@ -138,9 +203,16 @@ namespace ProjectG.PresentationLayer
             //
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(500, 307);
+            ClientSize = new Size(500, 392);
             Controls.Add(btnCancel);
             Controls.Add(btnSave);
+            Controls.Add(txtDynamicShortMaxExtraSec);
+            Controls.Add(lblDynamicShortMaxExtraSec);
+            Controls.Add(txtDynamicShortMaxTMult);
+            Controls.Add(lblDynamicShortMaxTMult);
+            Controls.Add(txtDynamicShortMinTMult);
+            Controls.Add(lblDynamicShortMinTMult);
+            Controls.Add(lblDynamicShortSection);
             Controls.Add(txtCancelingLoadedExtraThresholdSeconds);
             Controls.Add(lblCancelingLoadedExtraThresholdSeconds);
             Controls.Add(txtRestockThresholdPercent);
@@ -174,6 +246,13 @@ namespace ProjectG.PresentationLayer
         private TextBox txtRestockThresholdPercent;
         private Label lblCancelingLoadedExtraThresholdSeconds;
         private TextBox txtCancelingLoadedExtraThresholdSeconds;
+        private Label lblDynamicShortSection;
+        private Label lblDynamicShortMinTMult;
+        private TextBox txtDynamicShortMinTMult;
+        private Label lblDynamicShortMaxTMult;
+        private TextBox txtDynamicShortMaxTMult;
+        private Label lblDynamicShortMaxExtraSec;
+        private TextBox txtDynamicShortMaxExtraSec;
         private Button btnSave;
         private Button btnCancel;
     }

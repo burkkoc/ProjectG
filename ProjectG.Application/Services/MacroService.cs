@@ -272,24 +272,33 @@ namespace ProjectG.ApplicationLayer.Services
 
         /// <summary>
         /// RunCancelButtonClicked girişinden CancelingDone çıkışına kadar süre T (sn) ise sonraki Short cycle downtime
-        /// yaklaşık [2T, 2T+10] sn; alt sınır 15–25 sn bandına, üst sınır 100–120 sn bandına sıkıştırılır.
+        /// yaklaşık [minMult×T, maxMult×T+ekstra] sn; çarpanlar <see cref="NtfyUserSettings"/> üzerinden. Alt uç en az ~15 / ~25 sn.
         /// </summary>
         void ApplyCancelPhaseToDynamicShortDowntime(TimeSpan cancelPhaseDuration)
         {
+            var cfg = NtfySettingsStore.Load();
+            double minMult = cfg.DynamicShortAfterCancelMinTMultiplier is > 0 and < 1_000_000
+                ? cfg.DynamicShortAfterCancelMinTMultiplier
+                : 2;
+            double maxMult = cfg.DynamicShortAfterCancelMaxTMultiplier is > 0 and < 1_000_000
+                ? cfg.DynamicShortAfterCancelMaxTMultiplier
+                : 2;
+            double maxExtraSec = cfg.DynamicShortAfterCancelMaxExtraSeconds >= 0 && cfg.DynamicShortAfterCancelMaxExtraSeconds < 1_000_000
+                ? cfg.DynamicShortAfterCancelMaxExtraSeconds
+                : 10;
+
             double sec = Math.Max(0, cancelPhaseDuration.TotalSeconds);
-            int rawMinMs = (int)Math.Round(2 * sec * 1000.0);
-            int rawMaxMs = (int)Math.Round((2 * sec + 10) * 1000.0);
-            const int minClampLo = 15_000;
-            const int minClampHi = 100_000;
-            const int maxClampLo = 25_000;
-            const int maxClampHi = 120_000;
-            int minMs = Math.Clamp(rawMinMs, minClampLo, minClampHi);
-            int maxMs = Math.Clamp(rawMaxMs, maxClampLo, maxClampHi);
+            int rawMinMs = (int)Math.Round(minMult * sec * 1000.0);
+            int rawMaxMs = (int)Math.Round((maxMult * sec + maxExtraSec) * 1000.0);
+            const int minFloorMs = 15_000;
+            const int maxFloorMs = 25_000;
+            int minMs = Math.Max(minFloorMs, rawMinMs);
+            int maxMs = Math.Max(maxFloorMs, rawMaxMs);
             if (maxMs <= minMs)
-                maxMs = Math.Min(maxClampHi, minMs + 10_000);
+                maxMs = minMs + 10_000;
             AppSettings.DynamicShortCycleDowntimeMs = [minMs, maxMs];
             LogRestockFlow(
-                $"dynamic short downtime: cancel phase {cancelPhaseDuration.TotalSeconds:F1}s -> [{minMs},{maxMs}]ms (raw [{rawMinMs},{rawMaxMs}]ms)");
+                $"dynamic short downtime: T={cancelPhaseDuration.TotalSeconds:F1}s, mult [{minMult:0.###}×T, {maxMult:0.###}×T+{maxExtraSec:0.###}s] -> [{minMs},{maxMs}]ms (raw [{rawMinMs},{rawMaxMs}]ms)");
         }
 
         void LoadRestockSettings()

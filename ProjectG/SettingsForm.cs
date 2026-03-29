@@ -1,3 +1,4 @@
+using System.Globalization;
 using ProjectG.ApplicationLayer.Services;
 
 namespace ProjectG.PresentationLayer
@@ -17,6 +18,9 @@ namespace ProjectG.PresentationLayer
             txtRestockMaxNotificationCount.Text = s.RestockMaxNotificationCount.ToString();
             txtRestockThresholdPercent.Text = s.RestockThresholdPercent.ToString();
             txtCancelingLoadedExtraThresholdSeconds.Text = s.CancelingLoadedExtraThresholdSeconds.ToString();
+            txtDynamicShortMinTMult.Text = s.DynamicShortAfterCancelMinTMultiplier.ToString(CultureInfo.InvariantCulture);
+            txtDynamicShortMaxTMult.Text = s.DynamicShortAfterCancelMaxTMultiplier.ToString(CultureInfo.InvariantCulture);
+            txtDynamicShortMaxExtraSec.Text = s.DynamicShortAfterCancelMaxExtraSeconds.ToString(CultureInfo.InvariantCulture);
         }
 
         void btnSave_Click(object? sender, EventArgs e)
@@ -90,11 +94,50 @@ namespace ProjectG.PresentationLayer
                 return;
             }
 
+            if (!double.TryParse(txtDynamicShortMinTMult.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var dsMinT)
+                || dsMinT <= 0
+                || dsMinT > 1000)
+            {
+                MessageBox.Show(
+                    "Short dinamik bekleme: Min (T carpani) icin 0'dan buyuk, en fazla 1000 arasi sayi girin (orn. 2).",
+                    "Project G",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!double.TryParse(txtDynamicShortMaxTMult.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var dsMaxT)
+                || dsMaxT <= 0
+                || dsMaxT > 1000)
+            {
+                MessageBox.Show(
+                    "Short dinamik bekleme: Max (T carpani) icin 0'dan buyuk, en fazla 1000 arasi sayi girin (orn. 2).",
+                    "Project G",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!double.TryParse(txtDynamicShortMaxExtraSec.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var dsExtra)
+                || dsExtra < 0
+                || dsExtra > 86_400)
+            {
+                MessageBox.Show(
+                    "Short dinamik bekleme: Max ek saniye icin 0-86400 arasi sayi girin (orn. 10).",
+                    "Project G",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
             settings.NtfyNotifyTopicUrl = normalized;
             settings.MailboxLocateHotkey = mailboxKeyText.ToUpperInvariant();
             settings.RestockMaxNotificationCount = maxRestockNotificationCount;
             settings.RestockThresholdPercent = restockThresholdPercent;
             settings.CancelingLoadedExtraThresholdSeconds = cancelingLoadedExtraThresholdSeconds;
+            settings.DynamicShortAfterCancelMinTMultiplier = dsMinT;
+            settings.DynamicShortAfterCancelMaxTMultiplier = dsMaxT;
+            settings.DynamicShortAfterCancelMaxExtraSeconds = dsExtra;
             NtfySettingsStore.Save(settings);
             InternetConnectivityMonitor.ApplyNtfyUrls(normalized);
             DialogResult = DialogResult.OK;

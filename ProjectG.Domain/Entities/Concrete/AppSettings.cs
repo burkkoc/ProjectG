@@ -18,7 +18,7 @@ namespace ProjectG.DomainLayer.Entities.Concrete
 
         /// <summary>
         /// <see cref="CycleDowntime.Short"/> için döngü arası bekleme [min, max] ms.
-        /// RunCancelButtonClicked → CancelingDone süresine göre güncellenir; varsayılan 15–25 sn.
+        /// RunCancelButtonClicked → CancelingDone süresi T (sn) ile güncellenir; çarpanlar user-settings.json / Ayarlar.
         /// </summary>
         public static int[] DynamicShortCycleDowntimeMs { get; set; } = [15000, 25000];
 

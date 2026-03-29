@@ -279,7 +279,8 @@ namespace ProjectG.ApplicationLayer.Services
                     isFailed = null;
                     AppSettings.State = State.PostingDone;
                 }
-                // else await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
+                else
+                    await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
             }
             catch
             {
@@ -650,7 +651,8 @@ namespace ProjectG.ApplicationLayer.Services
                     TrySetFirstCancelingLoadedDuration();
                     cancelingLoadedEnteredUtc = null;
                 }
-                // else await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
+                else
+                    await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
 
             }
             catch
