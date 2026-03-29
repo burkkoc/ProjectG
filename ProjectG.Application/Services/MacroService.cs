@@ -40,6 +40,8 @@ namespace ProjectG.ApplicationLayer.Services
         DateTime? _cancelFlowStartedUtc;
         /// <summary>RunPost girişi; çıkış ölçümü <see cref="State.PostingLoaded"/> sona erdiğinde yapılır.</summary>
         DateTime? _postingPhaseStartUtc;
+        /// <summary><see cref="State.OnCycleDowntime"/> girişinde sıfırlanır; sadece ilk posting fazı guild döngü karşılaştırmasına yazılır.</summary>
+        int _postingPhasesCompletedInCycle;
 
         public MacroService()
         {
@@ -68,6 +70,7 @@ namespace ProjectG.ApplicationLayer.Services
             _nextRunPostMissingNotifyAttemptUtc = DateTime.MinValue;
             _cancelFlowStartedUtc = null;
             _postingPhaseStartUtc = null;
+            _postingPhasesCompletedInCycle = 0;
             await Task.Run(async () =>
             {
                 while (AppSettings.Working)
@@ -94,6 +97,8 @@ namespace ProjectG.ApplicationLayer.Services
                         }
                         _watchdogLastState = currentState;
                         _watchdogStateEnteredUtc = nowUtc;
+                        if (currentState == State.OnCycleDowntime)
+                            _postingPhasesCompletedInCycle = 0;
                         if (currentState == State.RunPostButtonClicked)
                         {
                             _postingPhaseStartUtc = nowUtc;
@@ -254,59 +259,72 @@ namespace ProjectG.ApplicationLayer.Services
         async Task HandleRunPostingPhaseCompletedAsync(TimeSpan phaseElapsed)
         {
             int runPostSec = (int)Math.Floor(phaseElapsed.TotalSeconds);
-            LogRestockFlow($"Posting phase (RunPost..PostingLoaded) done: elapsed={phaseElapsed.TotalSeconds:F2}s ({runPostSec}s)");
-            GuildBankRestockTrigger.RecordRunPostCompleted(runPostSec);
+            bool firstPostingPhaseInCycle = _postingPhasesCompletedInCycle == 0;
+            LogRestockFlow(
+                $"Posting phase (RunPost..PostingLoaded) done: elapsed={phaseElapsed.TotalSeconds:F2}s ({runPostSec}s), cycleFirst={firstPostingPhaseInCycle}");
+            GuildBankRestockTrigger.RecordPostingPhaseCompleted(runPostSec, firstPostingPhaseInCycle);
+            _postingPhasesCompletedInCycle++;
 
             if (!_dynamicRestockThresholdSec.HasValue)
             {
                 _baselineRunPostSec = runPostSec;
-                GuildBankRestockTrigger.RecordBaseline(runPostSec);
                 _dynamicRestockThresholdSec = (int)Math.Floor(runPostSec * _restockThresholdRatio);
                 LogRestockFlow($"threshold initialized from first posting phase: baseline={_baselineRunPostSec.Value}s, ratio={_restockThresholdRatio:F2}, shortThreshold={_dynamicRestockThresholdSec.Value}s");
                 return;
             }
 
-            RefreshShortThresholdFromBaseline();
-
             if (GuildBankRestockTrigger.TryConsumeAwaitingPostAfterGuildBank())
             {
-                if (runPostSec <= _dynamicRestockThresholdSec.Value)
+                int thresholdSec = _dynamicRestockThresholdSec.Value;
+                int prevBaselineSec = _baselineRunPostSec ?? runPostSec;
+
+                if (runPostSec <= thresholdSec)
                 {
                     if (_restockNotificationSentCount >= _restockMaxNotificationCount)
                     {
                         LogRestockFlow($"notify skipped: max notification reached ({_restockMaxNotificationCount})");
-                        return;
                     }
-
-                    string title = $"Restock detected | {Environment.MachineName}";
-                    int shorterPercent = 0;
-                    int baselineSec = _baselineRunPostSec ?? runPostSec;
-                    if (_baselineRunPostSec.HasValue && _baselineRunPostSec.Value > 0)
+                    else
                     {
-                        double diffRatio = (_baselineRunPostSec.Value - runPostSec) / (double)_baselineRunPostSec.Value;
-                        shorterPercent = (int)Math.Round(Math.Max(0, diffRatio) * 100, MidpointRounding.AwayFromZero);
-                    }
+                        string title = $"Restock detected | {Environment.MachineName}";
+                        int shorterPercent = 0;
+                        if (prevBaselineSec > 0)
+                        {
+                            double diffRatio = (prevBaselineSec - runPostSec) / (double)prevBaselineSec;
+                            shorterPercent = (int)Math.Round(Math.Max(0, diffRatio) * 100, MidpointRounding.AwayFromZero);
+                        }
 
-                    int ratioPct = (int)Math.Round(_restockThresholdRatio * 100.0, MidpointRounding.AwayFromZero);
-                    string message =
-                        $"Guild bank sonrasi ilk post hâlâ kisa: {runPostSec}s (esik: {_dynamicRestockThresholdSec.Value}s = ilk {baselineSec}s x %{ratioPct}). " +
-                        $"Ilk normale gore yaklasik %{shorterPercent} daha kisa.";
-                    LogRestockFlow($"guild-bank sonrasi post: runpost={runPostSec}s <= shortThreshold={_dynamicRestockThresholdSec.Value}s (ratio={_restockThresholdRatio:F2})");
-                    bool sent = await InternetConnectivityMonitor.SendTextNotificationAsync(title, message).ConfigureAwait(false);
-                    if (sent)
-                    {
-                        _restockNotificationSentCount++;
-                        GuildBankRestockTrigger.RecordRestockNotificationSent();
+                        int ratioPct = (int)Math.Round(_restockThresholdRatio * 100.0, MidpointRounding.AwayFromZero);
+                        string message =
+                            $"Guild bank sonrasi ilk post kisa: {runPostSec}s (esik: {thresholdSec}s = onceki ana {prevBaselineSec}s x %{ratioPct}). " +
+                            $"Onceki ana normale gore yaklasik %{shorterPercent} daha kisa.";
+                        LogRestockFlow($"guild-bank sonrasi post: runpost={runPostSec}s <= shortThreshold={thresholdSec}s (ratio={_restockThresholdRatio:F2})");
+                        bool sent = await InternetConnectivityMonitor.SendTextNotificationAsync(title, message).ConfigureAwait(false);
+                        if (sent)
+                        {
+                            _restockNotificationSentCount++;
+                            GuildBankRestockTrigger.RecordRestockNotificationSent();
+                        }
+                        LogRestockFlow($"notify result: {(sent ? "success" : "failed")}");
                     }
-                    LogRestockFlow($"notify result: {(sent ? "success" : "failed")}");
                 }
                 else
                 {
                     LogRestockFlow(
-                        $"guild-bank sonrasi post normal sayilir: runpost={runPostSec}s > shortThreshold={_dynamicRestockThresholdSec.Value}s; bildirim yok");
+                        $"guild-bank sonrasi post normal sayilir: runpost={runPostSec}s > shortThreshold={thresholdSec}s; bildirim yok");
                 }
 
+                _baselineRunPostSec = runPostSec;
+                _dynamicRestockThresholdSec = (int)Math.Floor(runPostSec * _restockThresholdRatio);
+                LogRestockFlow(
+                    $"guild sonrasi ana post guncellendi: yeni baseline={runPostSec}s, shortThreshold={_dynamicRestockThresholdSec.Value}s");
                 return;
+            }
+
+            if (firstPostingPhaseInCycle)
+            {
+                _baselineRunPostSec = runPostSec;
+                RefreshShortThresholdFromBaseline();
             }
 
             if (runPostSec <= _dynamicRestockThresholdSec.Value)

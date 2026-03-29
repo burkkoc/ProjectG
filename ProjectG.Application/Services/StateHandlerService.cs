@@ -458,6 +458,8 @@ namespace ProjectG.ApplicationLayer.Services
                         AppSettings.State = State.WaitingForDetectGuildBankWindow;
                     }
                 }
+
+                GuildBankRestockTrigger.RollCycleBaselinesAfterDowntimeGuildCheck();
                 //amIGoingToCloseMailbox = new Random().Next(0, 2) == 1;
                 //{
                 //    if (amIGoingToCloseMailbox)
@@ -756,6 +758,7 @@ namespace ProjectG.ApplicationLayer.Services
 
         private async Task ResetCycle()
         {
+            GuildBankRestockTrigger.ClearCurrentCycleFirstPost();
             AppSettings.State = State.OnCycleDowntime;
             isResetted = true;
             result = false;

@@ -1,13 +1,14 @@
 namespace ProjectG.ApplicationLayer.Services
 {
     /// <summary>
-    /// Guild bank tetikleme: min. zaman aralığı VEYA kısa posting (ilk süre × RestockThreshold% veya min. saniye farkı).
+    /// Guild bank tetikleme: min. zaman aralığı VEYA kısa posting (önceki cycle ilk post × RestockThreshold% veya saniye farkı).
+    /// Dinamik AH’ta ikinci posting fazı bilinçli kısa olduğundan yalnızca her cycle’ın <b>ilk</b> posting süresi kaydedilir.
     /// </summary>
     public static class GuildBankRestockTrigger
     {
         static readonly object _gate = new();
-        static int? _baselineRunPostSec;
-        static int _lastRunPostDurationSec;
+        static int? _priorCycleFirstRunPostSec;
+        static int? _currentCycleFirstRunPostSec;
         static int _restockNotifySentCount;
         static bool _awaitPostAfterGuildBankForShortNotify;
         static DateTime? _guildBankEligibleAfterUtc;
@@ -16,22 +17,43 @@ namespace ProjectG.ApplicationLayer.Services
         {
             lock (_gate)
             {
-                _baselineRunPostSec = null;
-                _lastRunPostDurationSec = 0;
+                _priorCycleFirstRunPostSec = null;
+                _currentCycleFirstRunPostSec = null;
                 _restockNotifySentCount = 0;
                 _awaitPostAfterGuildBankForShortNotify = false;
                 ScheduleNextGuildBankWindow(settings);
             }
         }
 
-        public static void RecordBaseline(int firstRunPostSec)
+        /// <summary>Kurtarma / yarım cycle: sadece bu cycle’a ait ilk post ölçümünü sıfırla (önceki cycle referansına dokunma).</summary>
+        public static void ClearCurrentCycleFirstPost()
         {
-            lock (_gate) { _baselineRunPostSec = firstRunPostSec; }
+            lock (_gate) { _currentCycleFirstRunPostSec = null; }
         }
 
-        public static void RecordRunPostCompleted(int runPostSec)
+        /// <summary>
+        /// MailBox → downtime sonunda guild kontrolünden hemen sonra: bu cycle’ın ilk postunu bir sonraki karşılaştırma için sakla.
+        /// </summary>
+        public static void RollCycleBaselinesAfterDowntimeGuildCheck()
         {
-            lock (_gate) { _lastRunPostDurationSec = runPostSec; }
+            lock (_gate)
+            {
+                if (_currentCycleFirstRunPostSec.HasValue)
+                    _priorCycleFirstRunPostSec = _currentCycleFirstRunPostSec;
+                _currentCycleFirstRunPostSec = null;
+            }
+        }
+
+        /// <summary>
+        /// Her posting fazı biter; yalnızca cycle içindeki <b>ilk</b> faz süresi guild kısa-posting mantığına yazılır.
+        /// </summary>
+        public static void RecordPostingPhaseCompleted(int runPostSec, bool isFirstPostingPhaseInCycle)
+        {
+            lock (_gate)
+            {
+                if (isFirstPostingPhaseInCycle)
+                    _currentCycleFirstRunPostSec = runPostSec;
+            }
         }
 
         public static void RecordRestockNotificationSent()
@@ -81,7 +103,7 @@ namespace ProjectG.ApplicationLayer.Services
         }
 
         /// <summary>
-        /// Zaman aralığı (örneklenmiş pencere) VEYA kısa posting: son RunPost ≤ ilk×(RestockThreshold%) veya (ilk−son) ≥ ayarlanan saniye.
+        /// Zaman aralığı (örneklenmiş pencere) VEYA kısa posting: bu cycle’ın ilk postu, önceki cycle ilk postuna göre kısa mı?
         /// </summary>
         public static bool ShouldRunGuildBank(NtfyUserSettings settings)
         {
@@ -94,11 +116,12 @@ namespace ProjectG.ApplicationLayer.Services
                     && DateTime.UtcNow >= _guildBankEligibleAfterUtc.Value)
                     return true;
 
-                if (_baselineRunPostSec is int b && b > 0 && _lastRunPostDurationSec > 0)
+                if (_priorCycleFirstRunPostSec is int prior && prior > 0
+                    && _currentCycleFirstRunPostSec is int cur && cur > 0)
                 {
-                    int shortCapSec = (int)Math.Floor(b * ratio);
-                    bool byRatio = _lastRunPostDurationSec <= shortCapSec;
-                    bool byDelta = minDelta > 0 && (b - _lastRunPostDurationSec) >= minDelta;
+                    int shortCapSec = (int)Math.Floor(prior * ratio);
+                    bool byRatio = cur <= shortCapSec;
+                    bool byDelta = minDelta > 0 && (prior - cur) >= minDelta;
                     if (byRatio || byDelta)
                         return true;
                 }
