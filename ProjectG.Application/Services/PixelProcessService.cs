@@ -139,12 +139,20 @@ namespace ProjectG.ApplicationLayer.Services
                         positionY = TSMWindow.AHBorder.Value.Y + 3;
                     }
                 }
-                else
+                else if (activeWindow == ActiveWindow.MailBox)
                 {
                     if (TSMWindow.MailBoxBorder != null)
                     {
                         positionX = TSMWindow.MailBoxBorder.Value.X + 3;
                         positionY = TSMWindow.MailBoxBorder.Value.Y + 3;
+                    }
+                }
+                else if (activeWindow == ActiveWindow.Bank)
+                {
+                    if (TSMWindow.BankBorder != null)
+                    {
+                        positionX = TSMWindow.BankBorder.Value.X + 3;
+                        positionY = TSMWindow.BankBorder.Value.Y + 3;
                     }
                 }
                 for (int i = 0; i < 3; i++)

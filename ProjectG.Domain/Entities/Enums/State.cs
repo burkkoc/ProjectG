@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -23,6 +23,7 @@ namespace ProjectG.DomainLayer.Entities.Enums
         WaitingForExitScan,
         WaitingForMailBoxWindow,
         WaitingForDetectMailBoxButtons,
+        WaitingForDetectGuildBankWindow,
         MailBoxButtonsFound,
         OpenAllMailButtonClicked,
         AllCancelledButtonClicked,
@@ -36,6 +37,9 @@ namespace ProjectG.DomainLayer.Entities.Enums
         OnCycleDowntime,
         TSMKeyClicked,
         Stopped,
+        WaitingForGuildBank,
+        WaitingForDetectTSMBankWindow,
+        WaitingForDetectBankRestock,
         WindowNotFound
 
 

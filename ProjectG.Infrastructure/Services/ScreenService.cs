@@ -160,6 +160,9 @@ namespace ProjectG.InfrastructureLayer.Services
                         case ActiveWindow.MailBox:
                             bitmap.Save(Paths.MailBoxImagePath, ImageFormat.Png);
                             break;
+                        case ActiveWindow.Bank:
+                            bitmap.Save(Paths.GuildBankImagePath, ImageFormat.Png);
+                            break;
                         case ActiveWindow.General:
                             bitmap.Save(Paths.GeneralImagePath, ImageFormat.Png);
                             break;

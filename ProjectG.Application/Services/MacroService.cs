@@ -14,8 +14,8 @@ namespace ProjectG.ApplicationLayer.Services
     [SupportedOSPlatform("windows")]
     public class MacroService
     {
-        /// <summary>Çoğu state için bu süreden uzun kalınırsa <see cref="State.OnCycleDowntime"/>'a dönülür.</summary>
-        static readonly TimeSpan StallTimeoutOperational = TimeSpan.FromMinutes(2);
+        /// <summary>OnCycleDowntime dışında bu süreden (120 sn) uzun kalınırsa kurtarma: AH açıksa ESC, sonra downtime.</summary>
+        static readonly TimeSpan StallTimeoutOperational = TimeSpan.FromSeconds(120);
 
         /// <summary><see cref="State.OnCycleDowntime"/> içinde uzun beklemeler (cycle downtime vb.) için üst sınır.</summary>
         static readonly TimeSpan StallTimeoutOnCycleDowntime = TimeSpan.FromMinutes(18);
@@ -30,7 +30,6 @@ namespace ProjectG.ApplicationLayer.Services
         readonly object _stateDurationGate = new();
         int? _dynamicRestockThresholdSec;
         int? _baselineRunPostSec;
-        int? _lastNotifiedRunPostSec;
         readonly object _restockLogGate = new();
         double _restockThresholdRatio = 0.90;
         int _restockMaxNotificationCount = 3;
@@ -39,6 +38,8 @@ namespace ProjectG.ApplicationLayer.Services
         bool _runPostMissingNotificationSent;
         DateTime _nextRunPostMissingNotifyAttemptUtc = DateTime.MinValue;
         DateTime? _cancelFlowStartedUtc;
+        /// <summary>RunPost girişi; çıkış ölçümü <see cref="State.PostingLoaded"/> sona erdiğinde yapılır.</summary>
+        DateTime? _postingPhaseStartUtc;
 
         public MacroService()
         {
@@ -57,11 +58,16 @@ namespace ProjectG.ApplicationLayer.Services
         public async Task Run()
         {
             LoadRestockSettings();
+            _dynamicRestockThresholdSec = null;
+            _baselineRunPostSec = null;
+            _restockNotificationSentCount = 0;
+            GuildBankRestockTrigger.ResetSession(NtfySettingsStore.Load());
             AppSettings.State = State.OnCycleDowntime;
             _lastRunPostButtonClickedEnteredUtc = DateTime.UtcNow;
             _runPostMissingNotificationSent = false;
             _nextRunPostMissingNotifyAttemptUtc = DateTime.MinValue;
             _cancelFlowStartedUtc = null;
+            _postingPhaseStartUtc = null;
             await Task.Run(async () =>
             {
                 while (AppSettings.Working)
@@ -71,11 +77,26 @@ namespace ProjectG.ApplicationLayer.Services
                     if (_watchdogLastState != currentState)
                     {
                         if (_watchdogLastState.HasValue)
-                            await HandleStateExitAsync(_watchdogLastState.Value, nowUtc - _watchdogStateEnteredUtc, nowUtc);
+                        {
+                            var exitedState = _watchdogLastState.Value;
+                            var elapsedInState = nowUtc - _watchdogStateEnteredUtc;
+
+                            if (exitedState == State.PostingLoaded && _postingPhaseStartUtc.HasValue)
+                            {
+                                var phaseElapsed = nowUtc - _postingPhaseStartUtc.Value;
+                                await HandleRunPostingPhaseCompletedAsync(phaseElapsed);
+                                _postingPhaseStartUtc = null;
+                            }
+                            else if (exitedState == State.RunPostButtonClicked && currentState != State.PostingLoaded)
+                                _postingPhaseStartUtc = null;
+
+                            await HandleStateExitAsync(exitedState, elapsedInState, nowUtc);
+                        }
                         _watchdogLastState = currentState;
                         _watchdogStateEnteredUtc = nowUtc;
                         if (currentState == State.RunPostButtonClicked)
                         {
+                            _postingPhaseStartUtc = nowUtc;
                             _lastRunPostButtonClickedEnteredUtc = nowUtc;
                             _runPostMissingNotificationSent = false;
                             _nextRunPostMissingNotifyAttemptUtc = DateTime.MinValue;
@@ -90,7 +111,7 @@ namespace ProjectG.ApplicationLayer.Services
                         var limit = StallTimeoutForState(currentState);
                         if (limit > TimeSpan.Zero && nowUtc - _watchdogStateEnteredUtc > limit)
                         {
-                            await _stateHandlerService.RecoverFromStallAsync();
+                            await _stateHandlerService.RecoverFromStallAsync(currentState);
                             _watchdogLastState = AppSettings.State;
                             _watchdogStateEnteredUtc = nowUtc;
                             continue;
@@ -126,6 +147,9 @@ namespace ProjectG.ApplicationLayer.Services
                             break;
                         case State.WaitingForDetectMailBoxButtons:
                             await _stateHandlerService.WaitingForDetectMailBoxButtonsHandler();
+                            break;
+                        case State.WaitingForDetectGuildBankWindow:
+                            await _stateHandlerService.WaitingForDetectGuildBankWindowHandler();
                             break;
                         case State.MailBoxButtonsFound:
                             await _stateHandlerService.MailBoxButtonFoundHandler();
@@ -203,7 +227,7 @@ namespace ProjectG.ApplicationLayer.Services
             }
         }
 
-        async Task HandleStateExitAsync(State exitedState, TimeSpan elapsed, DateTime transitionUtc)
+        Task HandleStateExitAsync(State exitedState, TimeSpan elapsed, DateTime transitionUtc)
         {
             lock (_stateDurationGate)
             {
@@ -221,18 +245,32 @@ namespace ProjectG.ApplicationLayer.Services
                     ApplyCancelPhaseToDynamicShortDowntime(cancelPhase);
             }
 
-            if (exitedState == State.RunPostButtonClicked)
-            {
-                int runPostSec = (int)Math.Floor(elapsed.TotalSeconds);
-                LogRestockFlow($"RunPostButtonClicked exit: elapsed={elapsed.TotalSeconds:F2}s ({runPostSec}s)");
+            return Task.CompletedTask;
+        }
 
-                if (!_dynamicRestockThresholdSec.HasValue)
-                {
-                    _baselineRunPostSec = runPostSec;
-                    _dynamicRestockThresholdSec = (int)Math.Floor(runPostSec * _restockThresholdRatio);
-                    LogRestockFlow($"threshold initialized from first runpost: baseline={_baselineRunPostSec.Value}s, threshold={_dynamicRestockThresholdSec.Value}s");
-                }
-                else if (runPostSec <= _dynamicRestockThresholdSec.Value)
+        /// <summary>
+        /// Posting süresi: <see cref="State.RunPostButtonClicked"/> girişinden <see cref="State.PostingLoaded"/> çıkışına kadar.
+        /// </summary>
+        async Task HandleRunPostingPhaseCompletedAsync(TimeSpan phaseElapsed)
+        {
+            int runPostSec = (int)Math.Floor(phaseElapsed.TotalSeconds);
+            LogRestockFlow($"Posting phase (RunPost..PostingLoaded) done: elapsed={phaseElapsed.TotalSeconds:F2}s ({runPostSec}s)");
+            GuildBankRestockTrigger.RecordRunPostCompleted(runPostSec);
+
+            if (!_dynamicRestockThresholdSec.HasValue)
+            {
+                _baselineRunPostSec = runPostSec;
+                GuildBankRestockTrigger.RecordBaseline(runPostSec);
+                _dynamicRestockThresholdSec = (int)Math.Floor(runPostSec * _restockThresholdRatio);
+                LogRestockFlow($"threshold initialized from first posting phase: baseline={_baselineRunPostSec.Value}s, ratio={_restockThresholdRatio:F2}, shortThreshold={_dynamicRestockThresholdSec.Value}s");
+                return;
+            }
+
+            RefreshShortThresholdFromBaseline();
+
+            if (GuildBankRestockTrigger.TryConsumeAwaitingPostAfterGuildBank())
+            {
+                if (runPostSec <= _dynamicRestockThresholdSec.Value)
                 {
                     if (_restockNotificationSentCount >= _restockMaxNotificationCount)
                     {
@@ -249,25 +287,32 @@ namespace ProjectG.ApplicationLayer.Services
                         shorterPercent = (int)Math.Round(Math.Max(0, diffRatio) * 100, MidpointRounding.AwayFromZero);
                     }
 
+                    int ratioPct = (int)Math.Round(_restockThresholdRatio * 100.0, MidpointRounding.AwayFromZero);
                     string message =
-                        $"RunPostButtonClicked: {runPostSec}s, threshold: {_dynamicRestockThresholdSec.Value}s. " +
-                        $"Normal suresinden yaklasik %{shorterPercent} daha kisaydi. ({baselineSec}s -> {runPostSec}s)";
-                    LogRestockFlow($"triggered notify: runpost={runPostSec}s <= threshold={_dynamicRestockThresholdSec.Value}s");
+                        $"Guild bank sonrasi ilk post hâlâ kisa: {runPostSec}s (esik: {_dynamicRestockThresholdSec.Value}s = ilk {baselineSec}s x %{ratioPct}). " +
+                        $"Ilk normale gore yaklasik %{shorterPercent} daha kisa.";
+                    LogRestockFlow($"guild-bank sonrasi post: runpost={runPostSec}s <= shortThreshold={_dynamicRestockThresholdSec.Value}s (ratio={_restockThresholdRatio:F2})");
                     bool sent = await InternetConnectivityMonitor.SendTextNotificationAsync(title, message).ConfigureAwait(false);
                     if (sent)
                     {
                         _restockNotificationSentCount++;
-                        _lastNotifiedRunPostSec = runPostSec;
-                        _dynamicRestockThresholdSec = (int)Math.Floor(_lastNotifiedRunPostSec.Value * 0.90);
-                        LogRestockFlow($"next threshold from last notify: last={_lastNotifiedRunPostSec.Value}s, nextThreshold={_dynamicRestockThresholdSec.Value}s");
+                        GuildBankRestockTrigger.RecordRestockNotificationSent();
                     }
                     LogRestockFlow($"notify result: {(sent ? "success" : "failed")}");
                 }
                 else
                 {
-                    LogRestockFlow($"no notify: runpost={runPostSec}s > threshold={_dynamicRestockThresholdSec.Value}s");
+                    LogRestockFlow(
+                        $"guild-bank sonrasi post normal sayilir: runpost={runPostSec}s > shortThreshold={_dynamicRestockThresholdSec.Value}s; bildirim yok");
                 }
+
+                return;
             }
+
+            if (runPostSec <= _dynamicRestockThresholdSec.Value)
+                LogRestockFlow($"kisa posting fazı ({runPostSec}s) ama guild bank sonrasi degil; bildirim yok");
+            else
+                LogRestockFlow($"no notify: posting phase={runPostSec}s > shortThreshold={_dynamicRestockThresholdSec.Value}s");
         }
 
         /// <summary>
@@ -301,12 +346,20 @@ namespace ProjectG.ApplicationLayer.Services
                 $"dynamic short downtime: T={cancelPhaseDuration.TotalSeconds:F1}s, mult [{minMult:0.###}×T, {maxMult:0.###}×T+{maxExtraSec:0.###}s] -> [{minMs},{maxMs}]ms (raw [{rawMinMs},{rawMaxMs}]ms)");
         }
 
+        /// <summary>İlk posting süresi ile threshold oranından «kısa posting» üst sınırı (saniye).</summary>
+        void RefreshShortThresholdFromBaseline()
+        {
+            if (_baselineRunPostSec is int b && b > 0)
+                _dynamicRestockThresholdSec = (int)Math.Floor(b * _restockThresholdRatio);
+        }
+
         void LoadRestockSettings()
         {
             var s = NtfySettingsStore.Load();
             _restockMaxNotificationCount = Math.Max(0, s.RestockMaxNotificationCount);
             _restockThresholdRatio = Math.Clamp(s.RestockThresholdPercent / 100.0, 0.0, 1.0);
-            LogRestockFlow($"settings loaded: maxNotification={_restockMaxNotificationCount}, thresholdPercent={s.RestockThresholdPercent}, thresholdRatio={_restockThresholdRatio:F2}");
+            RefreshShortThresholdFromBaseline();
+            LogRestockFlow($"settings loaded: maxNotification={_restockMaxNotificationCount}, thresholdPercent={s.RestockThresholdPercent}, thresholdRatio={_restockThresholdRatio:F2}, shortThresholdSec={_dynamicRestockThresholdSec?.ToString() ?? "(yok)"}");
         }
 
         void LogRestockFlow(string message)

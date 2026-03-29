@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,6 +13,8 @@ namespace ProjectG.ApplicationLayer.Enums
         MailBox,
         General,
         Chat,
-        MailboxText
+        MailboxText,
+        /// <summary>TSM Bank (Warehousing) paneli; siyah çerçeve taraması AH ile aynı.</summary>
+        Bank
     }
 }

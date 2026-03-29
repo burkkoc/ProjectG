@@ -63,6 +63,9 @@ namespace ProjectG.DomainLayer.Entities.Concrete
         public static Color? ActiveButtonColor { get; set; } = null;
 
         public static Rectangle? MailBoxPosition { get; set; }
+
+        /// <summary>Guild bank tıklama alanı; locate tuşu ile imleç konumundan atanır.</summary>
+        public static Rectangle? GuildBankPosition { get; set; }
         public static bool Working { get; set; } = false;
 
         /// <summary>Arka plan bağlantı denetimi (~1 sn) ile güncellenir; ilk ölçümden önce false olabilir.</summary>
@@ -72,6 +75,7 @@ namespace ProjectG.DomainLayer.Entities.Concrete
         public static void Reset()
         {
             MailBoxPosition = null;
+            GuildBankPosition = null;
             ActiveButtonColor = null;
             State = State.OnCycleDowntime;
             DynamicShortCycleDowntimeMs = [15000, 25000];

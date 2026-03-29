@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,6 +14,7 @@ namespace ProjectG.DomainLayer.Entities.Concrete.Statics
         public static TSMButton? RunPostScan { get; set; } = null;
         public static TSMButton? RunCancelScan { get; set; } = null;
         public static TSMButton? ExitButton { get; set; } = null;
+        public static TSMButton? RestockButton { get; set; } = null;
         public static void Reset()
         {
             OpenAllMailButton = null;
@@ -21,6 +22,7 @@ namespace ProjectG.DomainLayer.Entities.Concrete.Statics
             RunPostScan = null;
             RunCancelScan = null;
             ExitButton = null;
+            RestockButton = null;
         }
     }
 }

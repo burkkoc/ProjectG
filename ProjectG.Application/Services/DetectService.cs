@@ -35,13 +35,13 @@ namespace ProjectG.ApplicationLayer.Services
                         }
                         else break;
                     }
-                    if(TSMWindow.AHBorder != null) 
+                    if (TSMWindow.AHBorder != null)
                         await ScreenService.CapturePartialScreen((Rectangle)TSMWindow.AHBorder, Enums.ActiveWindow.AHMenu);
 
 
                     List<string> responses = new List<string>();
 
-                    
+
                     var result = TesseractService.FindTextLocation(SearchTerms.AHMenuButtonsWords, Paths.AHMenuImagePath);
 
                     foreach (var keyword in result)
@@ -162,7 +162,7 @@ namespace ProjectG.ApplicationLayer.Services
                                 {
 
                                     StaticTSMButtons.OpenAllMailButton = TSMButtonService.CreateTSMButton(ButtonName.OpenAllMails, keyword.Value, (Rectangle)TSMWindow.MailBoxBorder, ButtonContainer.MailBox);
-                                    if(StaticTSMButtons.OpenAllMailButton != null)
+                                    if (StaticTSMButtons.OpenAllMailButton != null)
                                         TSMButton.TSMButtons.Add(StaticTSMButtons.OpenAllMailButton);
                                 }
                                 return true;
@@ -173,7 +173,70 @@ namespace ProjectG.ApplicationLayer.Services
                     }
 
                 }
-                    return false;
+                return false;
+            });
+        }
+
+        /// <summary>
+        /// TSM bank çerçevesi + ekran görüntüsü; OCR ile <see cref="SearchTerms.BankRestockWords"/> (Restock) aranır, bulunursa <see cref="StaticTSMButtons.RestockButton"/> oluşturulur.
+        /// </summary>
+        public static async Task<bool> DetectGuildBankWindow()
+        {
+            return await Task.Run(async () =>
+            {
+                var timeout = TimeSpan.FromSeconds(20);
+                var endTime = DateTime.UtcNow.Add(timeout);
+                var endTime2 = DateTime.UtcNow.Add(TimeSpan.FromSeconds(5));
+
+                while (DateTime.UtcNow < endTime)
+                {
+                    while (DateTime.UtcNow < endTime2)
+                    {
+                        if (TSMWindow.BankBorder == null)
+                        {
+                            TSMWindow.BankBorder = await PixelProcessService.FindTSMWindow(Enums.ActiveWindow.Bank);
+                            await Task.Delay(UtilityService.GenerateRandom(380, 651));
+                        }
+                        else break;
+                    }
+
+                    if (TSMWindow.BankBorder == null)
+                    {
+                        await Task.Delay(UtilityService.GenerateRandom(380, 651));
+                        continue;
+                    }
+
+                    if (StaticTSMButtons.RestockButton != null)
+                        return true;
+
+                    await ScreenService.CapturePartialScreen((Rectangle)TSMWindow.BankBorder, Enums.ActiveWindow.Bank);
+
+                    var ocrResult = TesseractService.FindTextLocation(SearchTerms.BankRestockWords, Paths.GuildBankImagePath);
+
+                    foreach (var keyword in ocrResult)
+                    {
+                        if (keyword.Key.Equals("Restock", StringComparison.OrdinalIgnoreCase)
+                            && TSMWindow.BankBorder != null)
+                        {
+                            if (StaticTSMButtons.RestockButton == null)
+                            {
+                                StaticTSMButtons.RestockButton = TSMButtonService.CreateTSMButton(
+                                    ButtonName.Restock,
+                                    keyword.Value,
+                                    (Rectangle)TSMWindow.BankBorder,
+                                    ButtonContainer.Bank);
+                                if (StaticTSMButtons.RestockButton != null)
+                                    TSMButton.TSMButtons.Add(StaticTSMButtons.RestockButton);
+                            }
+
+                            return true;
+                        }
+                    }
+
+                    await Task.Delay(UtilityService.GenerateRandom(380, 651));
+                }
+
+                return false;
             });
         }
     }

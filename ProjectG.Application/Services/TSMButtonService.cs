@@ -31,7 +31,8 @@ namespace ProjectG.ApplicationLayer.Services
                 BackgroundColor = PixelProcessService.GetBackgroundColor(finalRectangle.X, finalRectangle.Y)
             };
 
-            if (tsmButton.Name == ButtonName.OpenAllMails && StaticTSMButtons.RunCancelScan != null)
+            if ((tsmButton.Name == ButtonName.OpenAllMails || tsmButton.Name == ButtonName.Restock)
+                && StaticTSMButtons.RunCancelScan != null)
                 tsmButton.BackgroundColor = StaticTSMButtons.RunCancelScan.BackgroundColor;
             return tsmButton;
         }

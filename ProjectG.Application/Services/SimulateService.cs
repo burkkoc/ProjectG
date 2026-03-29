@@ -64,6 +64,18 @@ namespace ProjectG.ApplicationLayer.Services
                             rnd2 = UtilityService.GenerateRandom(100, UserInput.ScreenResolutionY - 100);
                         } while (rnd2 > mailBorder.Y && rnd2 < mailBorder.Y + mailBorder.Height);
                         break;
+                    case ButtonContainer.Bank:
+                        if (TSMWindow.BankBorder != null)
+                            mailBorder = (Rectangle)TSMWindow.BankBorder;
+                        do
+                        {
+                            rnd1 = UtilityService.GenerateRandom(100, UserInput.ScreenResolutionX);
+                        } while (rnd1 > mailBorder.X && rnd1 < mailBorder.X + mailBorder.Width);
+                        do
+                        {
+                            rnd2 = UtilityService.GenerateRandom(100, UserInput.ScreenResolutionY - 100);
+                        } while (rnd2 > mailBorder.Y && rnd2 < mailBorder.Y + mailBorder.Height);
+                        break;
                     default:
                         break;
                 }
@@ -126,14 +138,21 @@ namespace ProjectG.ApplicationLayer.Services
 
         }
 
-        public async Task<bool> MouseClick(Rectangle rec)
+        public Task<bool> MouseClick(Rectangle rec) =>
+            MouseClickWithCornerReferenceAsync(rec, Paths.MailBoxCornerReferencePath);
+
+        /// <summary>Mailbox sonrası guild bank konumu; sağ-alt köşe referansı guild bank ile kaydedilmiş olmalı.</summary>
+        public Task<bool> MouseClickGuildBank(Rectangle rec) =>
+            MouseClickWithCornerReferenceAsync(rec, Paths.GuildBankCornerReferencePath);
+
+        async Task<bool> MouseClickWithCornerReferenceAsync(Rectangle rec, string cornerReferencePath)
         {
-            async Task<bool> CompareMailboxCornerFullMatchAsync()
+            async Task<bool> CompareCornerFullMatchAsync()
             {
                 var cornerRegion = MailBoxCornerCalibration.GetBlackAnchoredCornerRegion();
                 if (cornerRegion.Width <= 0 || cornerRegion.Height <= 0)
                     return false;
-                return await PixelProcessService.ScreenRegionFullyMatchesSavedReferenceAsync(cornerRegion, Paths.MailBoxCornerReferencePath);
+                return await PixelProcessService.ScreenRegionFullyMatchesSavedReferenceAsync(cornerRegion, cornerReferencePath);
             }
 
             int rnd1 = UtilityService.RandomClickCoordinateInRange(rec.X, rec.X + rec.Width);
@@ -143,7 +162,7 @@ namespace ProjectG.ApplicationLayer.Services
             _inputSimulator.Mouse.MoveMouseTo(absX, absY);
             await Task.Delay(UtilityService.GenerateRandom(1800, 2201));
 
-            bool result = await CompareMailboxCornerFullMatchAsync();
+            bool result = await CompareCornerFullMatchAsync();
 
             if (!result)
             {
@@ -151,7 +170,7 @@ namespace ProjectG.ApplicationLayer.Services
                 {
                     await MouseMove(rec, 90, 240);
                     await Task.Delay(UtilityService.GenerateRandom(380, 720));
-                    result = await CompareMailboxCornerFullMatchAsync();
+                    result = await CompareCornerFullMatchAsync();
                 }
             }
 

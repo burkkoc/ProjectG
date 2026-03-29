@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,6 +18,8 @@ namespace ProjectG.DomainLayer.Entities.Concrete
         public static string[] ExitScanWords { get; set; } = ["Exit"];
         public static string[] ChatWords { get; set; } = ["Retrying", "failed"];
         public static string[] MailBoxWords { get; set; } = ["Mailbox"];
+
+        public static string[] BankRestockWords { get; set; } = ["Restock"];
 
 
 

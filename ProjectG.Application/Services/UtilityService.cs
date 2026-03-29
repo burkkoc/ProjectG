@@ -66,6 +66,8 @@ namespace ProjectG.ApplicationLayer.Services
                     return Path.Combine(imagesFolder, "AHMenu.png");
                 case ActiveWindow.MailBox:
                     return Path.Combine(imagesFolder, "MailBox.png");
+                case ActiveWindow.Bank:
+                    return Path.Combine(imagesFolder, "GuildBank.png");
                 case ActiveWindow.General:
                     return Path.Combine(imagesFolder, "General.png");
                 case ActiveWindow.Chat:

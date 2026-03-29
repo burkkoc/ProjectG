@@ -11,6 +11,7 @@ namespace ProjectG
         private readonly MacroService _macroService;
         private UIHelper _uiHelper;
         private Keys _mailboxLocateKey = Keys.Z;
+        private Keys _guildBankLocateKey = Keys.X;
         private bool _isLoadingCustomDowntimeSettings;
         private bool _isLoadingCycleDowntimeSelection;
         public PG(MacroService macroService)
@@ -21,6 +22,7 @@ namespace ProjectG
             _uiHelper.Initiate();
             this.KeyPreview = true;
             LoadMailboxHotkeyFromSettings();
+            LoadGuildBankHotkeyFromSettings();
             LoadCustomDowntimeFromSettings();
             LoadSelectedCycleDowntimeFromSettings();
             numericCustomDowntimeMinSec.ValueChanged += CustomDowntimeInput_ValueChanged;
@@ -39,10 +41,12 @@ namespace ProjectG
             Paths.PostCancelImagePath = Path.Combine(Application.StartupPath, "Images", "PostCancel.png");
             Paths.AHMenuImagePath = Path.Combine(Application.StartupPath, "Images", "AHMenu.png");
             Paths.MailBoxImagePath = Path.Combine(Application.StartupPath, "Images", "MailBox.png");
+            Paths.GuildBankImagePath = Path.Combine(Application.StartupPath, "Images", "GuildBank.png");
             Paths.GeneralImagePath = Path.Combine(Application.StartupPath, "Images", "General.png");
             Paths.ChatWindowImagePath = Path.Combine(Application.StartupPath, "Images", "Chat.png");
             Paths.MailBoxTextImagePath = Path.Combine(Application.StartupPath, "Images", "MailBoxText.png");
             Paths.MailBoxCornerReferencePath = Path.Combine(Application.StartupPath, "MailBoxCornerReference.png");
+            Paths.GuildBankCornerReferencePath = Path.Combine(Application.StartupPath, "GuildBankCornerReference.png");
             //Paths.TesseractPath = Path.Combine(Application.StartupPath, "Tesseract-OCR","tessdata");
             //TimerDowntime.Stop();
 
@@ -122,6 +126,16 @@ namespace ProjectG
 
                 //_macroService.CancelTask();
             }
+            else if (e.KeyCode == _guildBankLocateKey)
+            {
+                int x = Cursor.Position.X;
+                int y = Cursor.Position.Y;
+                btnStart.Enabled = true;
+                AppSettings.GuildBankPosition = new Rectangle(x, y, 60, 60);
+                btnStart.Text = "Start";
+
+                await MailBoxCornerCalibration.SaveGuildBankCornerReferenceSnapshotAsync();
+            }
         }
 
         void btnSettings_Click(object? sender, EventArgs e)
@@ -132,7 +146,10 @@ namespace ProjectG
             f.Location = new Point(b.Left, b.Bottom + 4);
             f.TopMost = true;
             if (f.ShowDialog(this) == DialogResult.OK)
+            {
                 LoadMailboxHotkeyFromSettings();
+                LoadGuildBankHotkeyFromSettings();
+            }
         }
 
         private void LoadMailboxHotkeyFromSettings()
@@ -146,6 +163,20 @@ namespace ProjectG
             else
             {
                 _mailboxLocateKey = Keys.Z;
+            }
+        }
+
+        private void LoadGuildBankHotkeyFromSettings()
+        {
+            var settings = NtfySettingsStore.Load();
+            if (!string.IsNullOrWhiteSpace(settings.GuildBankLocateHotkey)
+                && Enum.TryParse<Keys>(settings.GuildBankLocateHotkey, true, out var parsedKey))
+            {
+                _guildBankLocateKey = parsedKey;
+            }
+            else
+            {
+                _guildBankLocateKey = Keys.X;
             }
         }
 

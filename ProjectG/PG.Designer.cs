@@ -179,9 +179,9 @@ namespace ProjectG
             btnStart.Enabled = false;
             btnStart.Font = new Font("Verdana", 9F);
             btnStart.ForeColor = Color.FromArgb(64, 64, 64);
-            btnStart.Location = new Point(385, 44);
+            btnStart.Location = new Point(386, 67);
             btnStart.Name = "btnStart";
-            btnStart.Size = new Size(69, 50);
+            btnStart.Size = new Size(69, 38);
             btnStart.TabIndex = 5;
             btnStart.Text = "Locate Mailbox";
             btnStart.UseVisualStyleBackColor = true;
@@ -253,7 +253,7 @@ namespace ProjectG
             cBoxDynamic.AutoSize = true;
             cBoxDynamic.Location = new Point(385, 42);
             cBoxDynamic.Name = "cBoxDynamic";
-            cBoxDynamic.Size = new Size(68, 19);
+            cBoxDynamic.Size = new Size(73, 19);
             cBoxDynamic.TabIndex = 12;
             cBoxDynamic.Text = "Dynamic";
             cBoxDynamic.UseVisualStyleBackColor = true;
@@ -291,7 +291,7 @@ namespace ProjectG
             // 
             btnSettings.Font = new Font("Verdana", 8.25F);
             btnSettings.ForeColor = Color.FromArgb(64, 64, 64);
-            btnSettings.Location = new Point(385, 100);
+            btnSettings.Location = new Point(385, 106);
             btnSettings.Name = "btnSettings";
             btnSettings.Size = new Size(70, 28);
             btnSettings.TabIndex = 11;

@@ -13,12 +13,18 @@ namespace ProjectG.DomainLayer.Entities.Concrete
         public static string PostCancelImagePath { get; set; } = string.Empty;
         public static string MailBoxImagePath { get; set; } = string.Empty;
 
+        /// <summary>TSM Bank / Guild Bank paneli ekran görüntüsü (FindTSMWindow ile).</summary>
+        public static string GuildBankImagePath { get; set; } = string.Empty;
+
         public static string ChatWindowImagePath {  get; set; } = string.Empty;
 
         public static string MailBoxTextImagePath { get; set; } = string.Empty;
 
-        /// <summary>250x250 sağ alt köşe referans görüntüsü (Z ile kaydedilir); OCR yerine piksel eşleştirmede kullanılır.</summary>
+        /// <summary>Sağ alt köşe referans görüntüsü (mailbox locate ile kaydedilir); OCR yerine piksel eşleştirmede kullanılır.</summary>
         public static string MailBoxCornerReferencePath { get; set; } = string.Empty;
+
+        /// <summary>Sağ alt köşe referans görüntüsü (guild bank locate ile kaydedilir).</summary>
+        public static string GuildBankCornerReferencePath { get; set; } = string.Empty;
 
         //public static string MailBoxTextImagePath2 { get; set; } = string.Empty;
         public static string TesseractPath { get; set; } = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Tesseract-OCR", "tessdata");

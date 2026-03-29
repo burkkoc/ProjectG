@@ -36,13 +36,20 @@ namespace ProjectG.ApplicationLayer.Services
             return Rectangle.Intersect(desired, new Rectangle(0, 0, screenW, screenH));
         }
 
-        public static Task<bool> SaveReferenceSnapshotAsync()
+        public static Task<bool> SaveReferenceSnapshotAsync() =>
+            SaveCornerReferenceSnapshotAsync(Paths.MailBoxCornerReferencePath);
+
+        /// <summary>Guild bank için aynı sağ-alt köşe bölgesi; referans dosyası ayrı.</summary>
+        public static Task<bool> SaveGuildBankCornerReferenceSnapshotAsync() =>
+            SaveCornerReferenceSnapshotAsync(Paths.GuildBankCornerReferencePath);
+
+        static Task<bool> SaveCornerReferenceSnapshotAsync(string filePath)
         {
             var region = GetBlackAnchoredCornerRegion();
             if (region.Width <= 0 || region.Height <= 0)
                 return Task.FromResult(false);
 
-            return ScreenService.CaptureRegionToFile(region, Paths.MailBoxCornerReferencePath);
+            return ScreenService.CaptureRegionToFile(region, filePath);
         }
     }
 }

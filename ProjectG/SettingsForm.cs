@@ -15,8 +15,12 @@ namespace ProjectG.PresentationLayer
             var s = NtfySettingsStore.Load();
             txtNtfyNotifyUrl.Text = s.NtfyNotifyTopicUrl;
             txtMailboxLocateHotkey.Text = s.MailboxLocateHotkey;
+            txtGuildBankLocateHotkey.Text = s.GuildBankLocateHotkey;
             txtRestockMaxNotificationCount.Text = s.RestockMaxNotificationCount.ToString();
             txtRestockThresholdPercent.Text = s.RestockThresholdPercent.ToString();
+            txtGuildBankMinIntervalMinutes.Text = s.GuildBankMinIntervalMinutes.ToString(CultureInfo.InvariantCulture);
+            txtGuildBankMaxIntervalMinutes.Text = s.GuildBankMaxIntervalMinutes.ToString(CultureInfo.InvariantCulture);
+            txtGuildBankAfterNotifyDeltaSec.Text = s.GuildBankAfterNotifyMinSecondsShorterThanFirst.ToString(CultureInfo.InvariantCulture);
             txtCancelingLoadedExtraThresholdSeconds.Text = s.CancelingLoadedExtraThresholdSeconds.ToString();
             txtDynamicShortMinTMult.Text = s.DynamicShortAfterCancelMinTMultiplier.ToString(CultureInfo.InvariantCulture);
             txtDynamicShortMaxTMult.Text = s.DynamicShortAfterCancelMaxTMultiplier.ToString(CultureInfo.InvariantCulture);
@@ -61,6 +65,17 @@ namespace ProjectG.PresentationLayer
                 return;
             }
 
+            var guildBankKeyText = txtGuildBankLocateHotkey.Text.Trim();
+            if (string.IsNullOrWhiteSpace(guildBankKeyText) || !Enum.TryParse<Keys>(guildBankKeyText, true, out _))
+            {
+                MessageBox.Show(
+                    "Guild Bank icin geçerli bir tuş girin (ör. X, F6, NumPad1).",
+                    "Project G",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
             if (!int.TryParse(txtRestockMaxNotificationCount.Text.Trim(), out var maxRestockNotificationCount) || maxRestockNotificationCount < 0)
             {
                 MessageBox.Show(
@@ -77,6 +92,56 @@ namespace ProjectG.PresentationLayer
             {
                 MessageBox.Show(
                     "Restock Threshold (%) icin 0-100 arasinda bir tam sayi girin.",
+                    "Project G",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!double.TryParse(txtGuildBankMinIntervalMinutes.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var guildBankMinIntervalMin)
+                || guildBankMinIntervalMin < 0.5
+                || guildBankMinIntervalMin > 10080)
+            {
+                MessageBox.Show(
+                    "Guild bank araligi (min dk) icin 0.5-10080 arasi sayi girin (orn. 2).",
+                    "Project G",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!double.TryParse(txtGuildBankMaxIntervalMinutes.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var guildBankMaxIntervalMin)
+                || guildBankMaxIntervalMin < 0.5
+                || guildBankMaxIntervalMin > 10080)
+            {
+                MessageBox.Show(
+                    "Guild bank araligi (max dk) icin 0.5-10080 arasi sayi girin.",
+                    "Project G",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (guildBankMaxIntervalMin < guildBankMinIntervalMin)
+            {
+                MessageBox.Show(
+                    "Guild bank max dakika, min dakikadan kucuk olamaz.",
+                    "Project G",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            var guildBankAfterNotifyText = txtGuildBankAfterNotifyDeltaSec.Text.Trim();
+            int guildBankAfterNotifyDeltaSec;
+            if (string.IsNullOrEmpty(guildBankAfterNotifyText))
+                guildBankAfterNotifyDeltaSec = 0;
+            else if (!int.TryParse(guildBankAfterNotifyText, out guildBankAfterNotifyDeltaSec)
+                || guildBankAfterNotifyDeltaSec < 0
+                || guildBankAfterNotifyDeltaSec > 86400)
+            {
+                MessageBox.Show(
+                    "Bildirim sonrasi min. fark (sn) icin bos (0) veya 0-86400 arasi tam sayi girin.",
                     "Project G",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
@@ -132,8 +197,12 @@ namespace ProjectG.PresentationLayer
 
             settings.NtfyNotifyTopicUrl = normalized;
             settings.MailboxLocateHotkey = mailboxKeyText.ToUpperInvariant();
+            settings.GuildBankLocateHotkey = guildBankKeyText.ToUpperInvariant();
             settings.RestockMaxNotificationCount = maxRestockNotificationCount;
             settings.RestockThresholdPercent = restockThresholdPercent;
+            settings.GuildBankMinIntervalMinutes = guildBankMinIntervalMin;
+            settings.GuildBankMaxIntervalMinutes = guildBankMaxIntervalMin;
+            settings.GuildBankAfterNotifyMinSecondsShorterThanFirst = guildBankAfterNotifyDeltaSec;
             settings.CancelingLoadedExtraThresholdSeconds = cancelingLoadedExtraThresholdSeconds;
             settings.DynamicShortAfterCancelMinTMultiplier = dsMinT;
             settings.DynamicShortAfterCancelMaxTMultiplier = dsMaxT;

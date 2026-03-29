@@ -9,6 +9,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using WindowsInput.Native;
 
 namespace ProjectG.ApplicationLayer.Services
 {
@@ -42,6 +43,13 @@ namespace ProjectG.ApplicationLayer.Services
         bool _dynamicAhPostFirstExitExpectCancel;
         bool _dynamicAhV2MailboxAfterSecondPost;
         bool _dynamicAhForceMailboxPostingDone;
+
+        /// <summary>Bir önceki AH beklemede pencere/algı başarısız olduysa bir sonraki girişte hedefle + etkileşim tuşu basılır.</summary>
+        bool _prepNextWaitingForAhWindowTargetAndInteract;
+
+        static readonly VirtualKeyCode AhWindowRetryTargetKey = VirtualKeyCode.VK_T;
+        /// <summary>WoW varsayılan etkileşim tuşu; bağlantı farklıysa sabiti güncelleyin.</summary>
+        static readonly VirtualKeyCode AhWindowRetryInteractKey = VirtualKeyCode.VK_Y;
 
         public StateHandlerService(SimulateService simulateService)
         {
@@ -83,7 +91,9 @@ namespace ProjectG.ApplicationLayer.Services
                 {
                     result = await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.VK_T);
                     await Task.Delay(UtilityService.GenerateRandom(42, 108));
-                    result = await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.VK_Y);
+                    bool ahMenuOpen = await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.AHMenu);
+                    if (!ahMenuOpen)
+                        result = await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.VK_Y);
                     startingNow = false;
 
                 }
@@ -100,8 +110,11 @@ namespace ProjectG.ApplicationLayer.Services
 
                     if (StaticTSMButtons.RunCancelScan != null)
                     {
-                        result = await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.VK_Y);
-                        //await Task.Delay(100);
+                        bool ahMenuOpenForY = await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.AHMenu);
+                        if (!ahMenuOpenForY)
+                            result = await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.VK_Y);
+                        else
+                            result = true;
                         if (result && await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.AHMenu))
                             result = await PixelProcessService.IsClickable(StaticTSMButtons.RunCancelScan ?? throw new NullReferenceException());
                     }
@@ -126,7 +139,14 @@ namespace ProjectG.ApplicationLayer.Services
         {
             try
             {
-
+                if (_prepNextWaitingForAhWindowTargetAndInteract)
+                {
+                    _prepNextWaitingForAhWindowTargetAndInteract = false;
+                    await _simulateService.SendMacroKey(AhWindowRetryTargetKey);
+                    await Task.Delay(UtilityService.GenerateRandom(42, 108));
+                    await _simulateService.SendMacroKey(AhWindowRetryInteractKey);
+                    await Task.Delay(UtilityService.GenerateRandom(120, 280));
+                }
 
                 if (StaticTSMButtons.RunCancelScan == null || StaticTSMButtons.RunPostScan == null)
                 {
@@ -139,6 +159,7 @@ namespace ProjectG.ApplicationLayer.Services
 
                 if (!await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.AHMenu))
                 {
+                    _prepNextWaitingForAhWindowTargetAndInteract = true;
                     AppSettings.State = State.WindowNotFound;
                     return;
 
@@ -146,9 +167,12 @@ namespace ProjectG.ApplicationLayer.Services
 
                 if (result)
                 {
+                    _prepNextWaitingForAhWindowTargetAndInteract = false;
                     AppSettings.State = State.AHButtonsFound;
                     result = false;
                 }
+                else
+                    _prepNextWaitingForAhWindowTargetAndInteract = true;
             }
             catch
             {
@@ -422,6 +446,18 @@ namespace ProjectG.ApplicationLayer.Services
                     if (AppSettings.DualClient)
                         await _simulateService.SwitchWindow();
                 }
+
+                if (AppSettings.State == State.OnCycleDowntime && AppSettings.GuildBankPosition != null
+                    && GuildBankRestockTrigger.ShouldRunGuildBank(NtfySettingsStore.Load()))
+                {
+                    await Task.Delay(UtilityService.GenerateRandom(320, 880));
+                    bool guildClicked = await _simulateService.MouseClickGuildBank((Rectangle)AppSettings.GuildBankPosition);
+                    if (guildClicked)
+                    {
+                        TSMWindow.BankBorder = null;
+                        AppSettings.State = State.WaitingForDetectGuildBankWindow;
+                    }
+                }
                 //amIGoingToCloseMailbox = new Random().Next(0, 2) == 1;
                 //{
                 //    if (amIGoingToCloseMailbox)
@@ -464,6 +500,43 @@ namespace ProjectG.ApplicationLayer.Services
             }
 
 
+        }
+
+        public async Task WaitingForDetectGuildBankWindowHandler()
+        {
+            try
+            {
+                await Task.Delay(UtilityService.GenerateRandom(820, 1181));
+
+                TSMWindow.BankBorder = null;
+                result = await DetectService.DetectGuildBankWindow();
+
+                if (!await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.Bank))
+                {
+                    AppSettings.State = State.WindowNotFound;
+                    return;
+                }
+
+                if (StaticTSMButtons.RestockButton != null)
+                {
+                    if (await PixelProcessService.IsClickable(StaticTSMButtons.RestockButton))
+                    {
+                        await _simulateService.MouseClick(StaticTSMButtons.RestockButton);
+                        await PixelProcessService.IsClickable(StaticTSMButtons.RestockButton, false);
+                    }
+                }
+
+                await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.VK_2, allowPossibleSecondTap: false);
+
+                TSMWindow.BankBorder = null;
+                AppSettings.State = State.OnCycleDowntime;
+                result = false;
+                GuildBankRestockTrigger.RecordGuildBankFlowCompleted(NtfySettingsStore.Load());
+            }
+            catch
+            {
+                await ResetCycle();
+            }
         }
 
         public async Task WaitingForExitScanHandler()
@@ -667,9 +740,19 @@ namespace ProjectG.ApplicationLayer.Services
         }
 
         /// <summary>
-        /// Uzun süre aynı state'te takılı kaldığında <see cref="MacroService"/> tarafından çağrılır; <see cref="ResetCycle"/> ile aynı kurtarma.
+        /// <see cref="State.OnCycleDowntime"/> dışında ~120 sn aşıldığında: AH menü açıksa ESC, ardından <see cref="ResetCycle"/> → <see cref="State.OnCycleDowntime"/>.
         /// </summary>
-        public Task RecoverFromStallAsync() => ResetCycle();
+        public async Task RecoverFromStallAsync(State stalledInState)
+        {
+            if (stalledInState != State.OnCycleDowntime
+                && await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.AHMenu))
+            {
+                await _simulateService.SendHumanizedMacroKey(VirtualKeyCode.ESCAPE, allowPossibleSecondTap: false);
+                await Task.Delay(UtilityService.GenerateRandom(120, 280));
+            }
+
+            await ResetCycle();
+        }
 
         private async Task ResetCycle()
         {

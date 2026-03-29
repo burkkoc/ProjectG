@@ -1,4 +1,4 @@
-﻿using ProjectG.DomainLayer.Entities.Abstract;
+using ProjectG.DomainLayer.Entities.Abstract;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -14,6 +14,8 @@ namespace ProjectG.DomainLayer.Entities.Concrete
         public static Color BorderColor { get; set; } = Color.FromArgb(0, 0, 0);
         public static Rectangle? MailBoxBorder { get; set; } = null;
 
+        public static Rectangle? BankBorder { get; set; } = null;
+
         public static Rectangle? ChatWindow {  get; set; } = null;
 
         public static Rectangle? MailboxTextWindow { get; set; } = null;
@@ -23,6 +25,7 @@ namespace ProjectG.DomainLayer.Entities.Concrete
             AHBorder = null;
             BorderColor = Color.FromArgb(0, 0, 0);
             MailBoxBorder = null;
+            BankBorder = null;
             ChatWindow = null;
             MailboxTextWindow = null;
         }
