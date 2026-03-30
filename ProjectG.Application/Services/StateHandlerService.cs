@@ -43,6 +43,7 @@ namespace ProjectG.ApplicationLayer.Services
         bool _dynamicAhPostFirstExitExpectCancel;
         bool _dynamicAhV2MailboxAfterSecondPost;
         bool _dynamicAhForceMailboxPostingDone;
+        bool _onCycleDowntimeEntryEscHandled;
 
         /// <summary>Bir önceki AH beklemede pencere/algı başarısız olduysa bir sonraki girişte hedefle + etkileşim tuşu basılır.</summary>
         bool _prepNextWaitingForAhWindowTargetAndInteract;
@@ -60,12 +61,6 @@ namespace ProjectG.ApplicationLayer.Services
         {
             try
             {
-                if (await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.AHMenu))
-                {
-                    //await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.ESCAPE);
-                    await Task.Delay(UtilityService.GenerateRandom(120, 280));
-                }
-
                 await Task.Delay(UtilityService.GenerateRandom(2400, 3601));
                 await _simulateService.MouseMove(50, ButtonContainer.AH);
                 if (TSMWindow.ChatWindow == null)
@@ -78,14 +73,32 @@ namespace ProjectG.ApplicationLayer.Services
                     //await Task.Delay(AppSettings.Downtime);
                     //AppSettings.Downtime = 0;
                     if (AppSettings.DualClient)
+                    {
+                        if (!_onCycleDowntimeEntryEscHandled)
+                        {
+                            await TrySendSingleEntryEscIfAnyWindowOpenAsync();
+                            _onCycleDowntimeEntryEscHandled = true;
+                        }
                         await ManageDualClient();
+                    }
                     else
                     {
                         AppSettings.Downtime = UtilityService.SetCycleDowntime();
-                        await Task.Delay(AppSettings.Downtime);
+                        if (!_onCycleDowntimeEntryEscHandled)
+                        {
+                            await DelayAndTryEntryEscWeightedAsync(AppSettings.Downtime);
+                            _onCycleDowntimeEntryEscHandled = true;
+                        }
+                        else
+                            await Task.Delay(AppSettings.Downtime);
                         AppSettings.Downtime = 0;
                     }
 
+                }
+                else if (!_onCycleDowntimeEntryEscHandled)
+                {
+                    await TrySendSingleEntryEscIfAnyWindowOpenAsync();
+                    _onCycleDowntimeEntryEscHandled = true;
                 }
                 if (startingNow || isResetted)
                 {
@@ -121,6 +134,7 @@ namespace ProjectG.ApplicationLayer.Services
 
                     if (result)
                     {
+                        _onCycleDowntimeEntryEscHandled = false;
                         AppSettings.State = State.WaitingForAHWindow;
                         result = false;
                     }
@@ -419,11 +433,16 @@ namespace ProjectG.ApplicationLayer.Services
                     result = await PixelProcessService.IsClickable(StaticTSMButtons.OpenAllMailButton, false);
                     if (result)
                     {
+                        _onCycleDowntimeEntryEscHandled = false;
                         AppSettings.State = State.OnCycleDowntime;
                         result = false;
                     }
                 }
-                else AppSettings.State = State.OnCycleDowntime;
+                else
+                {
+                    _onCycleDowntimeEntryEscHandled = false;
+                    AppSettings.State = State.OnCycleDowntime;
+                }
 
 
                 if (await PixelProcessService.IsClickable(StaticTSMButtons.OpenAllMailButton, false))
@@ -531,6 +550,7 @@ namespace ProjectG.ApplicationLayer.Services
                 await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.VK_2, allowPossibleSecondTap: false);
 
                 TSMWindow.BankBorder = null;
+                _onCycleDowntimeEntryEscHandled = false;
                 AppSettings.State = State.OnCycleDowntime;
                 result = false;
                 GuildBankRestockTrigger.RecordGuildBankFlowCompleted(NtfySettingsStore.Load());
@@ -759,6 +779,7 @@ namespace ProjectG.ApplicationLayer.Services
         private async Task ResetCycle()
         {
             GuildBankRestockTrigger.ClearCurrentCycleFirstPost();
+            _onCycleDowntimeEntryEscHandled = false;
             AppSettings.State = State.OnCycleDowntime;
             isResetted = true;
             result = false;
@@ -779,6 +800,55 @@ namespace ProjectG.ApplicationLayer.Services
             if (firstCancelingLoadedDuration.HasValue || !cancelingLoadedEnteredUtc.HasValue)
                 return;
             firstCancelingLoadedDuration = DateTime.UtcNow - cancelingLoadedEnteredUtc.Value;
+        }
+
+        /// <summary>
+        /// Downtime boyunca tek seferlik ESC zamanı: çoğunlukla ilk 1-2 sn, düşük olasılıkla daha geç bir nokta.
+        /// </summary>
+        async Task DelayAndTryEntryEscWeightedAsync(int totalDowntimeMs)
+        {
+            int total = Math.Max(1000, totalDowntimeMs);
+            int roll = Random.Shared.Next(100);
+            int escAtMs;
+            if (roll < 72)
+            {
+                // Ağırlık: girişe yakın
+                escAtMs = Math.Min(total, UtilityService.GenerateRandom(1000, 2201));
+            }
+            else if (roll < 92)
+            {
+                // Orta bölge
+                int lo = Math.Min(total, Math.Max(2200, (int)(total * 0.35)));
+                int hi = Math.Min(total, Math.Max(lo + 1, (int)(total * 0.60)));
+                escAtMs = UtilityService.GenerateRandom(lo, hi + 1);
+            }
+            else
+            {
+                // Düşük olasılık: geç zaman (örn. 20s için ~14s civarı)
+                int lo = Math.Min(total, Math.Max(2200, (int)(total * 0.65)));
+                int hi = Math.Min(total, Math.Max(lo + 1, (int)(total * 0.90)));
+                escAtMs = UtilityService.GenerateRandom(lo, hi + 1);
+            }
+
+            int beforeEscMs = Math.Clamp(escAtMs, 0, total);
+            int afterEscMs = Math.Max(0, total - beforeEscMs);
+            if (beforeEscMs > 0)
+                await Task.Delay(beforeEscMs);
+            await TrySendSingleEntryEscIfAnyWindowOpenAsync();
+            if (afterEscMs > 0)
+                await Task.Delay(afterEscMs);
+        }
+
+        async Task TrySendSingleEntryEscIfAnyWindowOpenAsync()
+        {
+            bool anyWindowOpen =
+                await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.AHMenu)
+                || await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.MailBox)
+                || await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.Bank);
+            if (!anyWindowOpen)
+                return;
+            await _simulateService.SendHumanizedMacroKey(VirtualKeyCode.ESCAPE, allowPossibleSecondTap: false);
+            await Task.Delay(UtilityService.GenerateRandom(120, 280));
         }
 
         private void LoadCancelingLoadedThresholdSettings()
