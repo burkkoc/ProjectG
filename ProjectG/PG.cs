@@ -116,6 +116,7 @@ namespace ProjectG
             //if (e.Control && e.Alt && e.KeyCode == Keys.P)
             if (e.KeyCode == _mailboxLocateKey)
             {
+                DualClientLayoutStore.ApplyPathsForForegroundCalibrationSlot(cBoxDualClient.Checked);
                 int x = Cursor.Position.X;
                 int y = Cursor.Position.Y;
                 btnStart.Enabled = true;
@@ -123,11 +124,18 @@ namespace ProjectG
                 btnStart.Text = "Start";
 
                 await MailBoxCornerCalibration.SaveReferenceSnapshotAsync();
+                DualClientLayoutStore.PersistCalibrationRectsForForeground(
+                    cBoxDualClient.Checked,
+                    AppSettings.MailBoxPosition,
+                    AppSettings.GuildBankPosition,
+                    UserInput.ScreenResolutionX,
+                    UserInput.ScreenResolutionY);
 
                 //_macroService.CancelTask();
             }
             else if (e.KeyCode == _guildBankLocateKey)
             {
+                DualClientLayoutStore.ApplyPathsForForegroundCalibrationSlot(cBoxDualClient.Checked);
                 int x = Cursor.Position.X;
                 int y = Cursor.Position.Y;
                 btnStart.Enabled = true;
@@ -135,6 +143,12 @@ namespace ProjectG
                 btnStart.Text = "Start";
 
                 await MailBoxCornerCalibration.SaveGuildBankCornerReferenceSnapshotAsync();
+                DualClientLayoutStore.PersistCalibrationRectsForForeground(
+                    cBoxDualClient.Checked,
+                    AppSettings.MailBoxPosition,
+                    AppSettings.GuildBankPosition,
+                    UserInput.ScreenResolutionX,
+                    UserInput.ScreenResolutionY);
             }
         }
 
@@ -149,6 +163,21 @@ namespace ProjectG
             {
                 LoadMailboxHotkeyFromSettings();
                 LoadGuildBankHotkeyFromSettings();
+            }
+        }
+
+        static void TryDeletePath(string path)
+        {
+            try
+            {
+                if (File.Exists(path))
+                    File.Delete(path);
+                else if (Directory.Exists(path))
+                    Directory.Delete(path, true);
+            }
+            catch
+            {
+                // ignored
             }
         }
 
@@ -327,7 +356,22 @@ namespace ProjectG
                 string projectPath = AppDomain.CurrentDomain.BaseDirectory;
                 string imagesFolder = Path.Combine(projectPath, "Images");
                 if (Directory.Exists(imagesFolder))
-                    Directory.Delete(imagesFolder, true);
+                {
+                    string dualRoot = Path.Combine(imagesFolder, "Dual");
+                    if (AppSettings.DualClient)
+                    {
+                        foreach (string entry in Directory.EnumerateFileSystemEntries(imagesFolder))
+                        {
+                            if (string.Equals(entry, dualRoot, StringComparison.OrdinalIgnoreCase))
+                                continue;
+                            TryDeletePath(entry);
+                        }
+                    }
+                    else
+                    {
+                        Directory.Delete(imagesFolder, true);
+                    }
+                }
             }
             else
             {
@@ -342,9 +386,12 @@ namespace ProjectG
                 radioBtnShort.Enabled = true;
                 radioBtnShortMedium.Enabled = true;
                 SetCustomDowntimeInputsEnabled(true);
+                DualClientLayoutStore.FlushActiveSlotToSnapshot();
                 TSMWindow.Reset();
                 AppSettings.Reset();
+                DualClientCycleCoordinator.Reset();
                 StaticTSMButtons.Reset();
+                DualClientLayoutStore.ClearActiveSlotTracking();
             }
 
             await _macroService.Run();
@@ -369,6 +416,29 @@ namespace ProjectG
             {
                 LblState.Text = AppSettings.State.ToString();
             }
+
+            if (AppSettings.DualClient && AppSettings.Working)
+            {
+                WowDualClientWindowSwitcher.PublishDualClientUiState();
+                int slot = AppSettings.DualClientActiveSlot;
+                int tot = AppSettings.DualClientTotalWow;
+                if (slot > 0 && tot >= 2)
+                    LblDualClient.Text = $"WoW #{slot}/{tot}";
+                else
+                    LblDualClient.Text = tot < 2 ? $"WoW: {tot}/2?" : "WoW: odak yok";
+                if (AppSettings.DualClientWaitRemainingSeconds > 0)
+                    LblDualClient.Text += $" • kalan {AppSettings.DualClientWaitRemainingSeconds}s";
+            }
+            else
+                LblDualClient.Text = "";
+
+            if (AppSettings.DualClient && AppSettings.Working && AppSettings.DualClientWaitRemainingSeconds > 0)
+            {
+                timeLeft = -3;
+                LblDowntime.Text = $"Downtime (bu WoW): {AppSettings.DualClientWaitRemainingSeconds}s";
+                return;
+            }
+
             if (AppSettings.Downtime > 0 && timeLeft == -3)
             {
                 timeLeft = (AppSettings.Downtime / 1000) - 1;

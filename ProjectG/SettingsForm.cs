@@ -22,6 +22,8 @@ namespace ProjectG.PresentationLayer
             txtGuildBankMaxIntervalMinutes.Text = s.GuildBankMaxIntervalMinutes.ToString(CultureInfo.InvariantCulture);
             txtGuildBankAfterNotifyDeltaSec.Text = s.GuildBankAfterNotifyMinSecondsShorterThanFirst.ToString(CultureInfo.InvariantCulture);
             txtCancelingLoadedExtraThresholdSeconds.Text = s.CancelingLoadedExtraThresholdSeconds.ToString();
+            txtCancelingLoadedMaxStayMinSeconds.Text = s.CancelingLoadedMaxStayMinSeconds.ToString();
+            txtCancelingLoadedMaxStayMaxSeconds.Text = s.CancelingLoadedMaxStayMaxSeconds.ToString();
             txtDynamicShortMinTMult.Text = s.DynamicShortAfterCancelMinTMultiplier.ToString(CultureInfo.InvariantCulture);
             txtDynamicShortMaxTMult.Text = s.DynamicShortAfterCancelMaxTMultiplier.ToString(CultureInfo.InvariantCulture);
             txtDynamicShortMaxExtraSec.Text = s.DynamicShortAfterCancelMaxExtraSeconds.ToString(CultureInfo.InvariantCulture);
@@ -159,6 +161,40 @@ namespace ProjectG.PresentationLayer
                 return;
             }
 
+            if (!int.TryParse(txtCancelingLoadedMaxStayMinSeconds.Text.Trim(), out var cancelingLoadedMaxStayMinSec)
+                || cancelingLoadedMaxStayMinSec < 1
+                || cancelingLoadedMaxStayMinSec > 600)
+            {
+                MessageBox.Show(
+                    "CancelingLoaded max kalis (sn) min icin 1-600 arasi tam sayi girin.",
+                    "Project G",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!int.TryParse(txtCancelingLoadedMaxStayMaxSeconds.Text.Trim(), out var cancelingLoadedMaxStayMaxSec)
+                || cancelingLoadedMaxStayMaxSec < 1
+                || cancelingLoadedMaxStayMaxSec > 600)
+            {
+                MessageBox.Show(
+                    "CancelingLoaded max kalis (sn) max icin 1-600 arasi tam sayi girin.",
+                    "Project G",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (cancelingLoadedMaxStayMaxSec < cancelingLoadedMaxStayMinSec)
+            {
+                MessageBox.Show(
+                    "CancelingLoaded max kalis: max, min'den kucuk olamaz.",
+                    "Project G",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
             if (!double.TryParse(txtDynamicShortMinTMult.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var dsMinT)
                 || dsMinT <= 0
                 || dsMinT > 1000)
@@ -204,6 +240,8 @@ namespace ProjectG.PresentationLayer
             settings.GuildBankMaxIntervalMinutes = guildBankMaxIntervalMin;
             settings.GuildBankAfterNotifyMinSecondsShorterThanFirst = guildBankAfterNotifyDeltaSec;
             settings.CancelingLoadedExtraThresholdSeconds = cancelingLoadedExtraThresholdSeconds;
+            settings.CancelingLoadedMaxStayMinSeconds = cancelingLoadedMaxStayMinSec;
+            settings.CancelingLoadedMaxStayMaxSeconds = cancelingLoadedMaxStayMaxSec;
             settings.DynamicShortAfterCancelMinTMultiplier = dsMinT;
             settings.DynamicShortAfterCancelMaxTMultiplier = dsMaxT;
             settings.DynamicShortAfterCancelMaxExtraSeconds = dsExtra;

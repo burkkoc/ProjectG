@@ -44,6 +44,7 @@ namespace ProjectG
             TimerDowntime = new System.Windows.Forms.Timer(components);
             groupBox1 = new GroupBox();
             groupBox2 = new GroupBox();
+            LblDualClient = new Label();
             LblState = new Label();
             cBoxDualClient = new CheckBox();
             cBoxDynamic = new CheckBox();
@@ -73,7 +74,7 @@ namespace ProjectG
             gBoxCycleDowntime.ForeColor = Color.Maroon;
             gBoxCycleDowntime.Location = new Point(5, 8);
             gBoxCycleDowntime.Name = "gBoxCycleDowntime";
-            gBoxCycleDowntime.Size = new Size(200, 108);
+            gBoxCycleDowntime.Size = new Size(200, 139);
             gBoxCycleDowntime.TabIndex = 2;
             gBoxCycleDowntime.TabStop = false;
             gBoxCycleDowntime.Text = "Cycle Downtime";
@@ -83,7 +84,7 @@ namespace ProjectG
             lblCustomDowntimeMax.AutoSize = true;
             lblCustomDowntimeMax.Font = new Font("Verdana", 7.5F);
             lblCustomDowntimeMax.ForeColor = Color.FromArgb(64, 64, 64);
-            lblCustomDowntimeMax.Location = new Point(89, 72);
+            lblCustomDowntimeMax.Location = new Point(89, 89);
             lblCustomDowntimeMax.Name = "lblCustomDowntimeMax";
             lblCustomDowntimeMax.Size = new Size(35, 12);
             lblCustomDowntimeMax.TabIndex = 11;
@@ -94,7 +95,7 @@ namespace ProjectG
             lblCustomDowntimeMin.AutoSize = true;
             lblCustomDowntimeMin.Font = new Font("Verdana", 7.5F);
             lblCustomDowntimeMin.ForeColor = Color.FromArgb(64, 64, 64);
-            lblCustomDowntimeMin.Location = new Point(6, 72);
+            lblCustomDowntimeMin.Location = new Point(6, 89);
             lblCustomDowntimeMin.Name = "lblCustomDowntimeMin";
             lblCustomDowntimeMin.Size = new Size(26, 12);
             lblCustomDowntimeMin.TabIndex = 9;
@@ -103,7 +104,7 @@ namespace ProjectG
             // numericCustomDowntimeMaxSec
             // 
             numericCustomDowntimeMaxSec.Font = new Font("Verdana", 8.25F);
-            numericCustomDowntimeMaxSec.Location = new Point(120, 69);
+            numericCustomDowntimeMaxSec.Location = new Point(120, 86);
             numericCustomDowntimeMaxSec.Maximum = new decimal(new int[] { 999, 0, 0, 0 });
             numericCustomDowntimeMaxSec.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             numericCustomDowntimeMaxSec.Name = "numericCustomDowntimeMaxSec";
@@ -115,7 +116,7 @@ namespace ProjectG
             // numericCustomDowntimeMinSec
             // 
             numericCustomDowntimeMinSec.Font = new Font("Verdana", 8.25F);
-            numericCustomDowntimeMinSec.Location = new Point(38, 69);
+            numericCustomDowntimeMinSec.Location = new Point(38, 86);
             numericCustomDowntimeMinSec.Maximum = new decimal(new int[] { 999, 0, 0, 0 });
             numericCustomDowntimeMinSec.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             numericCustomDowntimeMinSec.Name = "numericCustomDowntimeMinSec";
@@ -181,7 +182,7 @@ namespace ProjectG
             btnStart.ForeColor = Color.FromArgb(64, 64, 64);
             btnStart.Location = new Point(386, 67);
             btnStart.Name = "btnStart";
-            btnStart.Size = new Size(69, 38);
+            btnStart.Size = new Size(100, 38);
             btnStart.TabIndex = 5;
             btnStart.Text = "Locate Mailbox";
             btnStart.UseVisualStyleBackColor = true;
@@ -208,7 +209,7 @@ namespace ProjectG
             groupBox1.Controls.Add(LblDowntime);
             groupBox1.Font = new Font("Verdana", 8.25F, FontStyle.Bold, GraphicsUnit.Point, 162);
             groupBox1.ForeColor = Color.Maroon;
-            groupBox1.Location = new Point(215, 55);
+            groupBox1.Location = new Point(215, 67);
             groupBox1.Name = "groupBox1";
             groupBox1.Size = new Size(167, 39);
             groupBox1.TabIndex = 7;
@@ -217,21 +218,32 @@ namespace ProjectG
             // 
             // groupBox2
             // 
+            groupBox2.Controls.Add(LblDualClient);
             groupBox2.Controls.Add(LblState);
             groupBox2.Font = new Font("Verdana", 8.25F, FontStyle.Bold, GraphicsUnit.Point, 162);
             groupBox2.ForeColor = Color.Maroon;
             groupBox2.Location = new Point(215, 8);
             groupBox2.Name = "groupBox2";
-            groupBox2.Size = new Size(167, 39);
+            groupBox2.Size = new Size(167, 52);
             groupBox2.TabIndex = 8;
             groupBox2.TabStop = false;
             groupBox2.Text = "State";
+            // 
+            // LblDualClient
+            // 
+            LblDualClient.Font = new Font("Verdana", 7.5F, FontStyle.Regular, GraphicsUnit.Point, 162);
+            LblDualClient.ForeColor = Color.FromArgb(80, 80, 120);
+            LblDualClient.Location = new Point(6, 30);
+            LblDualClient.Name = "LblDualClient";
+            LblDualClient.Size = new Size(155, 14);
+            LblDualClient.TabIndex = 7;
+            LblDualClient.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // LblState
             // 
             LblState.Font = new Font("Verdana", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 162);
             LblState.ForeColor = Color.FromArgb(64, 64, 64);
-            LblState.Location = new Point(6, 17);
+            LblState.Location = new Point(6, 14);
             LblState.Name = "LblState";
             LblState.Size = new Size(155, 13);
             LblState.TabIndex = 6;
@@ -243,9 +255,9 @@ namespace ProjectG
             cBoxDualClient.AutoSize = true;
             cBoxDualClient.Location = new Point(385, 19);
             cBoxDualClient.Name = "cBoxDualClient";
-            cBoxDualClient.Size = new Size(81, 19);
+            cBoxDualClient.Size = new Size(101, 19);
             cBoxDualClient.TabIndex = 9;
-            cBoxDualClient.Text = "DualClient";
+            cBoxDualClient.Text = "MultipleClient";
             cBoxDualClient.UseVisualStyleBackColor = true;
             // 
             // cBoxDynamic
@@ -263,7 +275,7 @@ namespace ProjectG
             groupBoxInternet.Controls.Add(LblInternetStatus);
             groupBoxInternet.Font = new Font("Verdana", 8.25F, FontStyle.Bold, GraphicsUnit.Point, 162);
             groupBoxInternet.ForeColor = Color.Maroon;
-            groupBoxInternet.Location = new Point(215, 96);
+            groupBoxInternet.Location = new Point(215, 112);
             groupBoxInternet.Name = "groupBoxInternet";
             groupBoxInternet.Size = new Size(167, 38);
             groupBoxInternet.TabIndex = 10;
@@ -293,7 +305,7 @@ namespace ProjectG
             btnSettings.ForeColor = Color.FromArgb(64, 64, 64);
             btnSettings.Location = new Point(385, 106);
             btnSettings.Name = "btnSettings";
-            btnSettings.Size = new Size(70, 28);
+            btnSettings.Size = new Size(101, 28);
             btnSettings.TabIndex = 11;
             btnSettings.Text = "Settings";
             btnSettings.UseVisualStyleBackColor = true;
@@ -303,7 +315,7 @@ namespace ProjectG
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(465, 138);
+            ClientSize = new Size(496, 159);
             Controls.Add(btnSettings);
             Controls.Add(cBoxDynamic);
             Controls.Add(cBoxDualClient);
@@ -348,6 +360,7 @@ namespace ProjectG
         private System.Windows.Forms.Timer TimerDowntime;
         private GroupBox groupBox1;
         private GroupBox groupBox2;
+        private Label LblDualClient;
         private Label LblState;
         private CheckBox cBoxDualClient;
         private CheckBox cBoxDynamic;

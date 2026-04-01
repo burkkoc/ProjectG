@@ -21,6 +21,11 @@ namespace ProjectG.ApplicationLayer.Services
         public int GuildBankAfterNotifyMinSecondsShorterThanFirst { get; set; } = 60;
         public int CancelingLoadedExtraThresholdSeconds { get; set; } = 5;
 
+        /// <summary>CancelingLoaded: kalis suresi (sn) alt sinir; her giriste Max ile rastgele ust sinir secilir, dolunca CancelingDone.</summary>
+        public int CancelingLoadedMaxStayMinSeconds { get; set; } = 30;
+
+        public int CancelingLoadedMaxStayMaxSeconds { get; set; } = 40;
+
         /// <summary>Short cycle dinamik bekleme: min saniye ≈ T × bu çarpan (T = RunCancel → CancelingDone).</summary>
         public double DynamicShortAfterCancelMinTMultiplier { get; set; } = 2;
 

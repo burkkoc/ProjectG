@@ -35,6 +35,10 @@ namespace ProjectG.PresentationLayer
             txtGuildBankAfterNotifyDeltaSec = new TextBox();
             lblCancelingLoadedExtraThresholdSeconds = new Label();
             txtCancelingLoadedExtraThresholdSeconds = new TextBox();
+            lblCancelingLoadedMaxStaySeconds = new Label();
+            txtCancelingLoadedMaxStayMinSeconds = new TextBox();
+            lblCancelingLoadedMaxStayTo = new Label();
+            txtCancelingLoadedMaxStayMaxSeconds = new TextBox();
             lblDynamicShortMinTMult = new Label();
             txtDynamicShortMinTMult = new TextBox();
             lblDynamicShortMaxTMult = new Label();
@@ -190,10 +194,42 @@ namespace ProjectG.PresentationLayer
             txtCancelingLoadedExtraThresholdSeconds.Size = new Size(100, 23);
             txtCancelingLoadedExtraThresholdSeconds.TabIndex = 11;
             // 
+            // lblCancelingLoadedMaxStaySeconds
+            // 
+            lblCancelingLoadedMaxStaySeconds.AutoSize = true;
+            lblCancelingLoadedMaxStaySeconds.Location = new Point(12, 392);
+            lblCancelingLoadedMaxStaySeconds.Name = "lblCancelingLoadedMaxStaySeconds";
+            lblCancelingLoadedMaxStaySeconds.Size = new Size(273, 15);
+            lblCancelingLoadedMaxStaySeconds.TabIndex = 34;
+            lblCancelingLoadedMaxStaySeconds.Text = "CancelingLoaded max kalis (sn, min — max) → CancelingDone";
+            // 
+            // txtCancelingLoadedMaxStayMinSeconds
+            // 
+            txtCancelingLoadedMaxStayMinSeconds.Location = new Point(12, 410);
+            txtCancelingLoadedMaxStayMinSeconds.Name = "txtCancelingLoadedMaxStayMinSeconds";
+            txtCancelingLoadedMaxStayMinSeconds.Size = new Size(56, 23);
+            txtCancelingLoadedMaxStayMinSeconds.TabIndex = 35;
+            // 
+            // lblCancelingLoadedMaxStayTo
+            // 
+            lblCancelingLoadedMaxStayTo.AutoSize = true;
+            lblCancelingLoadedMaxStayTo.Location = new Point(74, 413);
+            lblCancelingLoadedMaxStayTo.Name = "lblCancelingLoadedMaxStayTo";
+            lblCancelingLoadedMaxStayTo.Size = new Size(19, 15);
+            lblCancelingLoadedMaxStayTo.TabIndex = 36;
+            lblCancelingLoadedMaxStayTo.Text = "—";
+            // 
+            // txtCancelingLoadedMaxStayMaxSeconds
+            // 
+            txtCancelingLoadedMaxStayMaxSeconds.Location = new Point(95, 410);
+            txtCancelingLoadedMaxStayMaxSeconds.Name = "txtCancelingLoadedMaxStayMaxSeconds";
+            txtCancelingLoadedMaxStayMaxSeconds.Size = new Size(56, 23);
+            txtCancelingLoadedMaxStayMaxSeconds.TabIndex = 37;
+            // 
             // lblDynamicShortMinTMult
             // 
             lblDynamicShortMinTMult.AutoSize = true;
-            lblDynamicShortMinTMult.Location = new Point(12, 414);
+            lblDynamicShortMinTMult.Location = new Point(12, 448);
             lblDynamicShortMinTMult.Name = "lblDynamicShortMinTMult";
             lblDynamicShortMinTMult.Size = new Size(100, 15);
             lblDynamicShortMinTMult.TabIndex = 13;
@@ -201,7 +237,7 @@ namespace ProjectG.PresentationLayer
             // 
             // txtDynamicShortMinTMult
             // 
-            txtDynamicShortMinTMult.Location = new Point(117, 414);
+            txtDynamicShortMinTMult.Location = new Point(117, 448);
             txtDynamicShortMinTMult.Name = "txtDynamicShortMinTMult";
             txtDynamicShortMinTMult.Size = new Size(72, 23);
             txtDynamicShortMinTMult.TabIndex = 14;
@@ -209,7 +245,7 @@ namespace ProjectG.PresentationLayer
             // lblDynamicShortMaxTMult
             // 
             lblDynamicShortMaxTMult.AutoSize = true;
-            lblDynamicShortMaxTMult.Location = new Point(12, 442);
+            lblDynamicShortMaxTMult.Location = new Point(12, 476);
             lblDynamicShortMaxTMult.Name = "lblDynamicShortMaxTMult";
             lblDynamicShortMaxTMult.Size = new Size(101, 15);
             lblDynamicShortMaxTMult.TabIndex = 15;
@@ -217,7 +253,7 @@ namespace ProjectG.PresentationLayer
             // 
             // txtDynamicShortMaxTMult
             // 
-            txtDynamicShortMaxTMult.Location = new Point(117, 442);
+            txtDynamicShortMaxTMult.Location = new Point(117, 476);
             txtDynamicShortMaxTMult.Name = "txtDynamicShortMaxTMult";
             txtDynamicShortMaxTMult.Size = new Size(72, 23);
             txtDynamicShortMaxTMult.TabIndex = 16;
@@ -225,7 +261,7 @@ namespace ProjectG.PresentationLayer
             // lblDynamicShortMaxExtraSec
             // 
             lblDynamicShortMaxExtraSec.AutoSize = true;
-            lblDynamicShortMaxExtraSec.Location = new Point(196, 445);
+            lblDynamicShortMaxExtraSec.Location = new Point(196, 479);
             lblDynamicShortMaxExtraSec.Name = "lblDynamicShortMaxExtraSec";
             lblDynamicShortMaxExtraSec.Size = new Size(53, 15);
             lblDynamicShortMaxExtraSec.TabIndex = 17;
@@ -233,7 +269,7 @@ namespace ProjectG.PresentationLayer
             // 
             // txtDynamicShortMaxExtraSec
             // 
-            txtDynamicShortMaxExtraSec.Location = new Point(255, 442);
+            txtDynamicShortMaxExtraSec.Location = new Point(255, 476);
             txtDynamicShortMaxExtraSec.Name = "txtDynamicShortMaxExtraSec";
             txtDynamicShortMaxExtraSec.Size = new Size(72, 23);
             txtDynamicShortMaxExtraSec.TabIndex = 18;
@@ -241,7 +277,7 @@ namespace ProjectG.PresentationLayer
             // btnSave
             // 
             btnSave.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnSave.Location = new Point(147, 488);
+            btnSave.Location = new Point(147, 522);
             btnSave.Name = "btnSave";
             btnSave.Size = new Size(75, 28);
             btnSave.TabIndex = 19;
@@ -252,7 +288,7 @@ namespace ProjectG.PresentationLayer
             // btnCancel
             // 
             btnCancel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnCancel.Location = new Point(228, 488);
+            btnCancel.Location = new Point(228, 522);
             btnCancel.Name = "btnCancel";
             btnCancel.Size = new Size(75, 28);
             btnCancel.TabIndex = 20;
@@ -264,7 +300,7 @@ namespace ProjectG.PresentationLayer
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(407, 528);
+            ClientSize = new Size(407, 562);
             Controls.Add(btnCancel);
             Controls.Add(btnSave);
             Controls.Add(txtDynamicShortMaxExtraSec);
@@ -273,6 +309,10 @@ namespace ProjectG.PresentationLayer
             Controls.Add(lblDynamicShortMaxTMult);
             Controls.Add(txtDynamicShortMinTMult);
             Controls.Add(lblDynamicShortMinTMult);
+            Controls.Add(txtCancelingLoadedMaxStayMaxSeconds);
+            Controls.Add(lblCancelingLoadedMaxStayTo);
+            Controls.Add(txtCancelingLoadedMaxStayMinSeconds);
+            Controls.Add(lblCancelingLoadedMaxStaySeconds);
             Controls.Add(txtCancelingLoadedExtraThresholdSeconds);
             Controls.Add(lblCancelingLoadedExtraThresholdSeconds);
             Controls.Add(txtGuildBankAfterNotifyDeltaSec);
@@ -322,6 +362,10 @@ namespace ProjectG.PresentationLayer
         private TextBox txtGuildBankAfterNotifyDeltaSec;
         private Label lblCancelingLoadedExtraThresholdSeconds;
         private TextBox txtCancelingLoadedExtraThresholdSeconds;
+        private Label lblCancelingLoadedMaxStaySeconds;
+        private TextBox txtCancelingLoadedMaxStayMinSeconds;
+        private Label lblCancelingLoadedMaxStayTo;
+        private TextBox txtCancelingLoadedMaxStayMaxSeconds;
         private Label lblDynamicShortMinTMult;
         private TextBox txtDynamicShortMinTMult;
         private Label lblDynamicShortMaxTMult;

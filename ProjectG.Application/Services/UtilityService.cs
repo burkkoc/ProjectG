@@ -117,6 +117,7 @@ namespace ProjectG.ApplicationLayer.Services
 
         public void ResetEverything()
         {
+            DualClientCycleCoordinator.Reset();
             AppSettings.State = State.OnCycleDowntime;
             TSMWindow.Reset();
             AppSettings.Reset();

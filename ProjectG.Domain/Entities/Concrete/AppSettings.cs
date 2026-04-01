@@ -54,6 +54,12 @@ namespace ProjectG.DomainLayer.Entities.Concrete
         //if mailboxrandomizedpossibility is true
         public static bool MailBoxCloseRandomize { get; set; }
 
+        /// <summary><see cref="State.CancelingLoaded"/> içinde kalış: üst süre (sn) alt sınır; her girişte <see cref="CancelingLoadedMaxStayMaxSeconds"/> ile rastgele seçilir.</summary>
+        public static int CancelingLoadedMaxStayMinSeconds { get; set; } = 30;
+
+        /// <summary><see cref="State.CancelingLoaded"/> içinde kalış üst süresi (sn) üst sınır.</summary>
+        public static int CancelingLoadedMaxStayMaxSeconds { get; set; } = 40;
+
         public static State State { get; set; } = State.OnCycleDowntime;
 
         public static List<State> States = new List<State>();
@@ -72,6 +78,16 @@ namespace ProjectG.DomainLayer.Entities.Concrete
         public static volatile bool IsInternetReachable;
 
         public static int Downtime { get; set; } = 0;
+
+        /// <summary>Dual client: ön plandaki WoW sırası (1-based), 0 = WoW değil veya bilinmiyor.</summary>
+        public static volatile int DualClientActiveSlot;
+
+        /// <summary>Dual client: tespit edilen WoW ana pencere sayısı.</summary>
+        public static volatile int DualClientTotalWow;
+
+        /// <summary>Dual client: bu WoW için döngü beklemesi — sıradaki işe başlamadan kalan saniye (UI).</summary>
+        public static volatile int DualClientWaitRemainingSeconds;
+
         public static void Reset()
         {
             MailBoxPosition = null;
@@ -79,6 +95,9 @@ namespace ProjectG.DomainLayer.Entities.Concrete
             ActiveButtonColor = null;
             State = State.OnCycleDowntime;
             DynamicShortCycleDowntimeMs = [15000, 25000];
+            DualClientActiveSlot = 0;
+            DualClientTotalWow = 0;
+            DualClientWaitRemainingSeconds = 0;
         }
 
 

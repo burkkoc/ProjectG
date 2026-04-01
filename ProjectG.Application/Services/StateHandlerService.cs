@@ -28,6 +28,7 @@ namespace ProjectG.ApplicationLayer.Services
         private DateTime? cancelingLoadedEnteredUtc;
         private TimeSpan? firstCancelingLoadedDuration;
         private TimeSpan cancelingLoadedExtraThreshold = TimeSpan.FromSeconds(5);
+        private int? _cancelingLoadedPickedMaxStaySec;
 
         enum DynamicAhFlowVariant
         {
@@ -62,16 +63,9 @@ namespace ProjectG.ApplicationLayer.Services
             try
             {
                 await Task.Delay(UtilityService.GenerateRandom(2400, 3601));
-                await _simulateService.MouseMove(50, ButtonContainer.AH);
-                if (TSMWindow.ChatWindow == null)
-                {
-                    TSMWindow.ChatWindow = await PixelProcessService.FindChatWindow(Enums.ActiveWindow.Chat);
-                }
+
                 if (!startingNow)
                 {
-                    //AppSettings.Downtime = UtilityService.SetCycleDowntime();
-                    //await Task.Delay(AppSettings.Downtime);
-                    //AppSettings.Downtime = 0;
                     if (AppSettings.DualClient)
                     {
                         if (!_onCycleDowntimeEntryEscHandled)
@@ -79,7 +73,16 @@ namespace ProjectG.ApplicationLayer.Services
                             await TrySendSingleEntryEscIfAnyWindowOpenAsync();
                             _onCycleDowntimeEntryEscHandled = true;
                         }
-                        await ManageDualClient();
+
+                        var gate = await DualClientCycleCoordinator.RunOnCycleDowntimeGateAsync(_simulateService);
+                        if (gate == DualDowntimeGateResult.NotEnoughWowWindows
+                            || gate == DualDowntimeGateResult.ForegroundNotWow)
+                        {
+                            AppSettings.State = State.WindowNotFound;
+                            return;
+                        }
+
+                        DualClientLayoutStore.EnsureGlobalsMatchForegroundWow();
                     }
                     else
                     {
@@ -93,12 +96,25 @@ namespace ProjectG.ApplicationLayer.Services
                             await Task.Delay(AppSettings.Downtime);
                         AppSettings.Downtime = 0;
                     }
-
                 }
                 else if (!_onCycleDowntimeEntryEscHandled)
                 {
                     await TrySendSingleEntryEscIfAnyWindowOpenAsync();
                     _onCycleDowntimeEntryEscHandled = true;
+                }
+
+                if (startingNow && AppSettings.DualClient
+                    && WowDualClientWindowSwitcher.GetSortedWowMainWindowHandles().Count >= 2)
+                {
+                    await _simulateService.SwitchWindow();
+                    await Task.Delay(UtilityService.GenerateRandom(120, 261));
+                    DualClientLayoutStore.EnsureGlobalsMatchForegroundWow();
+                }
+
+                await _simulateService.MouseMove(50, ButtonContainer.AH);
+                if (TSMWindow.ChatWindow == null)
+                {
+                    TSMWindow.ChatWindow = await PixelProcessService.FindChatWindow(Enums.ActiveWindow.Chat);
                 }
                 if (startingNow || isResetted)
                 {
@@ -462,8 +478,6 @@ namespace ProjectG.ApplicationLayer.Services
                         await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.ESCAPE, allowPossibleSecondTap: false);
                     }
 
-                    if (AppSettings.DualClient)
-                        await _simulateService.SwitchWindow();
                 }
 
                 if (AppSettings.State == State.OnCycleDowntime && AppSettings.GuildBankPosition != null
@@ -696,12 +710,33 @@ namespace ProjectG.ApplicationLayer.Services
         {
             try
             {
-                cancelingLoadedEnteredUtc ??= DateTime.UtcNow;
+                if (!cancelingLoadedEnteredUtc.HasValue)
+                {
+                    LoadCancelingLoadedThresholdSettings();
+                    cancelingLoadedEnteredUtc = DateTime.UtcNow;
+                    int lo = AppSettings.CancelingLoadedMaxStayMinSeconds;
+                    int hi = AppSettings.CancelingLoadedMaxStayMaxSeconds;
+                    if (lo > hi)
+                        (lo, hi) = (hi, lo);
+                    _cancelingLoadedPickedMaxStaySec = UtilityService.GenerateRandom(lo, hi + 1);
+                }
+
+                if (_cancelingLoadedPickedMaxStaySec is int capSec
+                    && cancelingLoadedEnteredUtc.HasValue
+                    && (DateTime.UtcNow - cancelingLoadedEnteredUtc.Value).TotalSeconds >= capSec)
+                {
+                    AppSettings.State = State.CancelingDone;
+                    cancelingLoadedEnteredUtc = null;
+                    _cancelingLoadedPickedMaxStaySec = null;
+                    return;
+                }
+
                 if (firstCancelingLoadedDuration.HasValue
                     && DateTime.UtcNow - cancelingLoadedEnteredUtc.Value > firstCancelingLoadedDuration.Value + cancelingLoadedExtraThreshold)
                 {
                     AppSettings.State = State.CancelingDone;
                     cancelingLoadedEnteredUtc = null;
+                    _cancelingLoadedPickedMaxStaySec = null;
                     return;
                 }
 
@@ -727,6 +762,7 @@ namespace ProjectG.ApplicationLayer.Services
                     AppSettings.State = State.CancelingDone;
                     TrySetFirstCancelingLoadedDuration();
                     cancelingLoadedEnteredUtc = null;
+                    _cancelingLoadedPickedMaxStaySec = null;
                     return;
                 }
 
@@ -734,6 +770,7 @@ namespace ProjectG.ApplicationLayer.Services
                 {
                     AppSettings.State = State.WindowNotFound;
                     cancelingLoadedEnteredUtc = null;
+                    _cancelingLoadedPickedMaxStaySec = null;
                     return;
                 }
                 if (resultTask.IsCompleted && resultTask.Result)
@@ -745,6 +782,7 @@ namespace ProjectG.ApplicationLayer.Services
                     AppSettings.State = State.CancelingDone;
                     TrySetFirstCancelingLoadedDuration();
                     cancelingLoadedEnteredUtc = null;
+                    _cancelingLoadedPickedMaxStaySec = null;
                 }
                 else
                     await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
@@ -788,6 +826,7 @@ namespace ProjectG.ApplicationLayer.Services
             isFailed = null;
             isClickable = null;
             cancelingLoadedEnteredUtc = null;
+            _cancelingLoadedPickedMaxStaySec = null;
             ResetDynamicAhFlowSession();
             //if (TSMWindow.AHBorder != null && await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.AHMenu) || (TSMWindow.MailBoxBorder != null && await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.MailBox)))
             //{
@@ -855,6 +894,8 @@ namespace ProjectG.ApplicationLayer.Services
         {
             var settings = NtfySettingsStore.Load();
             cancelingLoadedExtraThreshold = TimeSpan.FromSeconds(Math.Max(0, settings.CancelingLoadedExtraThresholdSeconds));
+            AppSettings.CancelingLoadedMaxStayMinSeconds = settings.CancelingLoadedMaxStayMinSeconds;
+            AppSettings.CancelingLoadedMaxStayMaxSeconds = settings.CancelingLoadedMaxStayMaxSeconds;
         }
 
         void ResetDynamicAhFlowSession()
@@ -900,13 +941,6 @@ namespace ProjectG.ApplicationLayer.Services
                 || _dynamicAhFlowVariant == DynamicAhFlowVariant.PostThenCancel
                 || _dynamicAhFlowVariant == DynamicAhFlowVariant.PostDelayThenCancel;
         }
-
-        private async Task ManageDualClient()
-        {
-            await _simulateService.SwitchWindow();
-        }
-
-
 
     }
 }

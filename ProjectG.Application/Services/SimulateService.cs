@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using WindowsInput;
 using WindowsInput.Native;
@@ -225,10 +226,19 @@ namespace ProjectG.ApplicationLayer.Services
             return true;
         }
 
+        /// <summary>
+        /// DualClient: önce iki WoW ana penceresi arasında doğrudan geçiş dener; yalnızca tek istemci veya Win32 başarısızsa Alt+Tab.
+        /// </summary>
         public async Task<bool> SwitchWindow()
         {
             return await Task.Run(() =>
             {
+                if (WowDualClientWindowSwitcher.TrySwitchBetweenWowWindows())
+                {
+                    Thread.Sleep(UtilityService.GenerateRandom(90, 201));
+                    return true;
+                }
+
                 _inputSimulator.Keyboard.Sleep(UtilityService.GenerateRandom(50, 100)).KeyDown(VirtualKeyCode.LMENU).Sleep(UtilityService.GenerateRandom(50, 80)).KeyDown(VirtualKeyCode.TAB).Sleep(UtilityService.GenerateRandom(50, 80)).KeyUp(VirtualKeyCode.TAB).Sleep(UtilityService.GenerateRandom(50, 80)).KeyUp(VirtualKeyCode.LMENU).Sleep(UtilityService.GenerateRandom(50, 80));
 
                 return true;

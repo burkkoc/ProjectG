@@ -64,6 +64,8 @@ namespace ProjectG.ApplicationLayer.Services
             _baselineRunPostSec = null;
             _restockNotificationSentCount = 0;
             GuildBankRestockTrigger.ResetSession(NtfySettingsStore.Load());
+            DualClientCycleCoordinator.Reset();
+            DualClientLayoutStore.ClearActiveSlotTracking();
             AppSettings.State = State.OnCycleDowntime;
             _lastRunPostButtonClickedEnteredUtc = DateTime.UtcNow;
             _runPostMissingNotificationSent = false;
@@ -75,6 +77,9 @@ namespace ProjectG.ApplicationLayer.Services
             {
                 while (AppSettings.Working)
                 {
+                    if (AppSettings.DualClient)
+                        DualClientLayoutStore.EnsureGlobalsMatchForegroundWow();
+
                     var currentState = AppSettings.State;
                     var nowUtc = DateTime.UtcNow;
                     if (_watchdogLastState != currentState)
