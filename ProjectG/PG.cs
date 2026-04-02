@@ -25,6 +25,9 @@ namespace ProjectG
             LoadGuildBankHotkeyFromSettings();
             LoadCustomDowntimeFromSettings();
             LoadSelectedCycleDowntimeFromSettings();
+            LoadWindowPreferencesFromSettings();
+            SyncStartButtonFromCalibration();
+            Shown += PG_Shown;
             numericCustomDowntimeMinSec.ValueChanged += CustomDowntimeInput_ValueChanged;
             numericCustomDowntimeMaxSec.ValueChanged += CustomDowntimeInput_ValueChanged;
             RadioShort.CheckedChanged += CycleDowntimeRadio_CheckedChanged;
@@ -103,12 +106,66 @@ namespace ProjectG
 
         private void PG_FormClosing(object sender, FormClosingEventArgs e)
         {
+            PersistMainWindowPreferencesToSettings();
             //_uiHelper.DeleteImage();
             string projectPath = AppDomain.CurrentDomain.BaseDirectory;
             string imagesFolder = Path.Combine(projectPath, "Images");
             if (Directory.Exists(imagesFolder))
                 //Directory.Delete(imagesFolder, true);
                 Application.Exit();
+        }
+
+        private void PG_Shown(object? sender, EventArgs e)
+        {
+            if (cBoxDualClient.Checked)
+                DualClientLayoutStore.TryApplyCalibrationFromPersistedToAppIfDualReady();
+            SyncStartButtonFromCalibration();
+        }
+
+        /// <summary>Kalıcı Z/X (posta alanı) varsa ve makro çalışmıyorsa Start kullanılabilir.</summary>
+        private void SyncStartButtonFromCalibration()
+        {
+            if (AppSettings.Working)
+                return;
+            if (AppSettings.MailBoxPosition != null)
+            {
+                btnStart.Enabled = true;
+                btnStart.Text = "Start";
+            }
+        }
+
+        private void LoadWindowPreferencesFromSettings()
+        {
+            var settings = NtfySettingsStore.Load();
+            cBoxDualClient.Checked = settings.MultipleClientEnabled;
+            cBoxDynamic.Checked = settings.DynamicAhFlowEnabled;
+            DualClientLayoutStore.LoadPersistedSlotsFromSettings(settings);
+            if (!settings.MultipleClientEnabled)
+                DualClientLayoutStore.ApplySingleClientCalibrationFromPersist(settings.SingleClientCalibration);
+            else
+                DualClientLayoutStore.ApplyFirstPersistedDualSlotCalibrationToAppIfAny();
+            AppSettings.ExitTime = settings.ExitTimeMinutes;
+        }
+
+        private void PersistMainWindowPreferencesToSettings()
+        {
+            if (AppSettings.Working && cBoxDualClient.Checked)
+                DualClientLayoutStore.FlushActiveSlotToSnapshot();
+
+            var settings = NtfySettingsStore.Load();
+            settings.MultipleClientEnabled = cBoxDualClient.Checked;
+            settings.DynamicAhFlowEnabled = cBoxDynamic.Checked;
+            settings.ExitTimeMinutes = AppSettings.ExitTime;
+            if (cBoxDualClient.Checked)
+                DualClientLayoutStore.FlushPersistedDualSlotsToSettings(settings);
+            else
+            {
+                var singleFresh = DualClientLayoutStore.BuildSingleCalibrationPersistFromGlobals();
+                if (singleFresh != null)
+                    settings.SingleClientCalibration = singleFresh;
+            }
+
+            NtfySettingsStore.Save(settings);
         }
 
         private async void PG_KeyDown(object sender, KeyEventArgs e)

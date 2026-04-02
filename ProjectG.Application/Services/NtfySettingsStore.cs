@@ -59,14 +59,18 @@ namespace ProjectG.ApplicationLayer.Services
                 o.GuildBankMaxIntervalMinutes = o.GuildBankMinIntervalMinutes;
             if (o.GuildBankAfterNotifyMinSecondsShorterThanFirst < 0 || o.GuildBankAfterNotifyMinSecondsShorterThanFirst > 86_400)
                 o.GuildBankAfterNotifyMinSecondsShorterThanFirst = 60;
-            if (o.CancelingLoadedExtraThresholdSeconds < 0 || o.CancelingLoadedExtraThresholdSeconds > 86_400)
-                o.CancelingLoadedExtraThresholdSeconds = 5;
             if (o.CancelingLoadedMaxStayMinSeconds < 1 || o.CancelingLoadedMaxStayMinSeconds > 600)
                 o.CancelingLoadedMaxStayMinSeconds = 30;
             if (o.CancelingLoadedMaxStayMaxSeconds < 1 || o.CancelingLoadedMaxStayMaxSeconds > 600)
                 o.CancelingLoadedMaxStayMaxSeconds = 40;
             if (o.CancelingLoadedMaxStayMaxSeconds < o.CancelingLoadedMaxStayMinSeconds)
                 o.CancelingLoadedMaxStayMaxSeconds = o.CancelingLoadedMaxStayMinSeconds;
+            if (o.ExitTimeMinutes < 0 || o.ExitTimeMinutes > 10_080)
+                o.ExitTimeMinutes = 0;
+            if (o.ExitTimeNotifyMinutesBefore < 0)
+                o.ExitTimeNotifyMinutesBefore = 0;
+            else if (o.ExitTimeNotifyMinutesBefore > 120)
+                o.ExitTimeNotifyMinutesBefore = 120;
         }
 
         public static void Save(NtfyUserSettings settings)

@@ -2,6 +2,7 @@
 using ProjectG.DomainLayer.Entities.Concrete;
 using ProjectG.DomainLayer.Entities.Enums;
 using ProjectG.InfrastructureLayer.Services;
+using System.Collections.Concurrent;
 using System.Drawing;
 using System.Reflection;
 using ProjectG.DomainLayer.Entities.Concrete.Statics;
@@ -28,12 +29,16 @@ namespace ProjectG.ApplicationLayer.Services
         DateTime _watchdogStateEnteredUtc;
         readonly Dictionary<State, TimeSpan> _stateTotalDurations = new();
         readonly object _stateDurationGate = new();
-        int? _dynamicRestockThresholdSec;
-        int? _baselineRunPostSec;
+        sealed class ClientMacroRestockState
+        {
+            public int? DynamicRestockThresholdSec;
+            public int? BaselineRunPostSec;
+        }
+
+        readonly ConcurrentDictionary<IntPtr, ClientMacroRestockState> _macroRestockByClient = new();
         readonly object _restockLogGate = new();
         double _restockThresholdRatio = 0.90;
         int _restockMaxNotificationCount = 3;
-        int _restockNotificationSentCount;
         DateTime _lastRunPostButtonClickedEnteredUtc = DateTime.UtcNow;
         bool _runPostMissingNotificationSent;
         DateTime _nextRunPostMissingNotifyAttemptUtc = DateTime.MinValue;
@@ -60,9 +65,7 @@ namespace ProjectG.ApplicationLayer.Services
         public async Task Run()
         {
             LoadRestockSettings();
-            _dynamicRestockThresholdSec = null;
-            _baselineRunPostSec = null;
-            _restockNotificationSentCount = 0;
+            _macroRestockByClient.Clear();
             GuildBankRestockTrigger.ResetSession(NtfySettingsStore.Load());
             DualClientCycleCoordinator.Reset();
             DualClientLayoutStore.ClearActiveSlotTracking();
@@ -75,6 +78,8 @@ namespace ProjectG.ApplicationLayer.Services
             _postingPhasesCompletedInCycle = 0;
             await Task.Run(async () =>
             {
+                AppSettings.MacroSessionStartedUtc = DateTime.UtcNow;
+                OptionalMacroNtfyNotifier.ResetSessionFlags();
                 while (AppSettings.Working)
                 {
                     if (AppSettings.DualClient)
@@ -103,7 +108,10 @@ namespace ProjectG.ApplicationLayer.Services
                         _watchdogLastState = currentState;
                         _watchdogStateEnteredUtc = nowUtc;
                         if (currentState == State.OnCycleDowntime)
+                        {
                             _postingPhasesCompletedInCycle = 0;
+                            DualClientCycleCoordinator.MarkOnCycleDowntimeEntered();
+                        }
                         if (currentState == State.RunPostButtonClicked)
                         {
                             _postingPhaseStartUtc = nowUtc;
@@ -265,29 +273,33 @@ namespace ProjectG.ApplicationLayer.Services
         {
             int runPostSec = (int)Math.Floor(phaseElapsed.TotalSeconds);
             bool firstPostingPhaseInCycle = _postingPhasesCompletedInCycle == 0;
+            IntPtr rk = GuildBankRestockTrigger.ResolveRestockClientKey();
             LogRestockFlow(
-                $"Posting phase (RunPost..PostingLoaded) done: elapsed={phaseElapsed.TotalSeconds:F2}s ({runPostSec}s), cycleFirst={firstPostingPhaseInCycle}");
-            GuildBankRestockTrigger.RecordPostingPhaseCompleted(runPostSec, firstPostingPhaseInCycle);
+                $"Posting phase (RunPost..PostingLoaded) done: elapsed={phaseElapsed.TotalSeconds:F2}s ({runPostSec}s), cycleFirst={firstPostingPhaseInCycle}, clientKey=0x{rk.ToInt64():X}");
+            GuildBankRestockTrigger.RecordPostingPhaseCompleted(runPostSec, firstPostingPhaseInCycle, rk);
             _postingPhasesCompletedInCycle++;
 
-            if (!_dynamicRestockThresholdSec.HasValue)
+            var mr = _macroRestockByClient.GetOrAdd(rk, _ => new ClientMacroRestockState());
+
+            if (!mr.DynamicRestockThresholdSec.HasValue)
             {
-                _baselineRunPostSec = runPostSec;
-                _dynamicRestockThresholdSec = (int)Math.Floor(runPostSec * _restockThresholdRatio);
-                LogRestockFlow($"threshold initialized from first posting phase: baseline={_baselineRunPostSec.Value}s, ratio={_restockThresholdRatio:F2}, shortThreshold={_dynamicRestockThresholdSec.Value}s");
+                mr.BaselineRunPostSec = runPostSec;
+                mr.DynamicRestockThresholdSec = (int)Math.Floor(runPostSec * _restockThresholdRatio);
+                LogRestockFlow($"threshold initialized from first posting phase (key 0x{rk.ToInt64():X}): baseline={mr.BaselineRunPostSec.Value}s, ratio={_restockThresholdRatio:F2}, shortThreshold={mr.DynamicRestockThresholdSec.Value}s");
                 return;
             }
 
-            if (GuildBankRestockTrigger.TryConsumeAwaitingPostAfterGuildBank())
+            if (GuildBankRestockTrigger.TryConsumeAwaitingPostAfterGuildBank(rk))
             {
-                int thresholdSec = _dynamicRestockThresholdSec.Value;
-                int prevBaselineSec = _baselineRunPostSec ?? runPostSec;
+                int thresholdSec = mr.DynamicRestockThresholdSec.Value;
+                int prevBaselineSec = mr.BaselineRunPostSec ?? runPostSec;
+                int notifyCount = GuildBankRestockTrigger.GetRestockNotifySentCount(rk);
 
                 if (runPostSec <= thresholdSec)
                 {
-                    if (_restockNotificationSentCount >= _restockMaxNotificationCount)
+                    if (notifyCount >= _restockMaxNotificationCount)
                     {
-                        LogRestockFlow($"notify skipped: max notification reached ({_restockMaxNotificationCount})");
+                        LogRestockFlow($"notify skipped: max notification reached ({_restockMaxNotificationCount}) key=0x{rk.ToInt64():X}");
                     }
                     else
                     {
@@ -306,10 +318,7 @@ namespace ProjectG.ApplicationLayer.Services
                         LogRestockFlow($"guild-bank sonrasi post: runpost={runPostSec}s <= shortThreshold={thresholdSec}s (ratio={_restockThresholdRatio:F2})");
                         bool sent = await InternetConnectivityMonitor.SendTextNotificationAsync(title, message).ConfigureAwait(false);
                         if (sent)
-                        {
-                            _restockNotificationSentCount++;
-                            GuildBankRestockTrigger.RecordRestockNotificationSent();
-                        }
+                            GuildBankRestockTrigger.RecordRestockNotificationSent(rk);
                         LogRestockFlow($"notify result: {(sent ? "success" : "failed")}");
                     }
                 }
@@ -319,23 +328,26 @@ namespace ProjectG.ApplicationLayer.Services
                         $"guild-bank sonrasi post normal sayilir: runpost={runPostSec}s > shortThreshold={thresholdSec}s; bildirim yok");
                 }
 
-                _baselineRunPostSec = runPostSec;
-                _dynamicRestockThresholdSec = (int)Math.Floor(runPostSec * _restockThresholdRatio);
+                mr.BaselineRunPostSec = runPostSec;
+                mr.DynamicRestockThresholdSec = (int)Math.Floor(runPostSec * _restockThresholdRatio);
                 LogRestockFlow(
-                    $"guild sonrasi ana post guncellendi: yeni baseline={runPostSec}s, shortThreshold={_dynamicRestockThresholdSec.Value}s");
+                    $"guild sonrasi ana post guncellendi (key 0x{rk.ToInt64():X}): yeni baseline={runPostSec}s, shortThreshold={mr.DynamicRestockThresholdSec.Value}s");
                 return;
             }
 
             if (firstPostingPhaseInCycle)
             {
-                _baselineRunPostSec = runPostSec;
-                RefreshShortThresholdFromBaseline();
+                mr.BaselineRunPostSec = runPostSec;
+                RefreshShortThresholdFromBaseline(mr);
             }
 
-            if (runPostSec <= _dynamicRestockThresholdSec.Value)
-                LogRestockFlow($"kisa posting fazı ({runPostSec}s) ama guild bank sonrasi degil; bildirim yok");
-            else
-                LogRestockFlow($"no notify: posting phase={runPostSec}s > shortThreshold={_dynamicRestockThresholdSec.Value}s");
+            if (mr.DynamicRestockThresholdSec is int th)
+            {
+                if (runPostSec <= th)
+                    LogRestockFlow($"kisa posting fazı ({runPostSec}s) ama guild bank sonrasi degil; bildirim yok");
+                else
+                    LogRestockFlow($"no notify: posting phase={runPostSec}s > shortThreshold={th}s");
+            }
         }
 
         /// <summary>
@@ -364,16 +376,29 @@ namespace ProjectG.ApplicationLayer.Services
             int maxMs = Math.Max(maxFloorMs, rawMaxMs);
             if (maxMs <= minMs)
                 maxMs = minMs + 10_000;
+
+            if (AppSettings.DualClient)
+            {
+                IntPtr h = WowDualClientWindowSwitcher.TryGetForegroundWowMainWindowHandle();
+                if (h != IntPtr.Zero)
+                {
+                    DualClientCycleCoordinator.SetPerClientDynamicShortCycleDowntimeMs(h, minMs, maxMs);
+                    LogRestockFlow(
+                        $"dynamic short downtime (per WoW 0x{h.ToInt64():X}): T={cancelPhaseDuration.TotalSeconds:F1}s, mult [{minMult:0.###}×T, {maxMult:0.###}×T+{maxExtraSec:0.###}s] -> [{minMs},{maxMs}]ms (raw [{rawMinMs},{rawMaxMs}]ms)");
+                    return;
+                }
+            }
+
             AppSettings.DynamicShortCycleDowntimeMs = [minMs, maxMs];
             LogRestockFlow(
                 $"dynamic short downtime: T={cancelPhaseDuration.TotalSeconds:F1}s, mult [{minMult:0.###}×T, {maxMult:0.###}×T+{maxExtraSec:0.###}s] -> [{minMs},{maxMs}]ms (raw [{rawMinMs},{rawMaxMs}]ms)");
         }
 
         /// <summary>İlk posting süresi ile threshold oranından «kısa posting» üst sınırı (saniye).</summary>
-        void RefreshShortThresholdFromBaseline()
+        void RefreshShortThresholdFromBaseline(ClientMacroRestockState st)
         {
-            if (_baselineRunPostSec is int b && b > 0)
-                _dynamicRestockThresholdSec = (int)Math.Floor(b * _restockThresholdRatio);
+            if (st.BaselineRunPostSec is int b && b > 0)
+                st.DynamicRestockThresholdSec = (int)Math.Floor(b * _restockThresholdRatio);
         }
 
         void LoadRestockSettings()
@@ -381,8 +406,9 @@ namespace ProjectG.ApplicationLayer.Services
             var s = NtfySettingsStore.Load();
             _restockMaxNotificationCount = Math.Max(0, s.RestockMaxNotificationCount);
             _restockThresholdRatio = Math.Clamp(s.RestockThresholdPercent / 100.0, 0.0, 1.0);
-            RefreshShortThresholdFromBaseline();
-            LogRestockFlow($"settings loaded: maxNotification={_restockMaxNotificationCount}, thresholdPercent={s.RestockThresholdPercent}, thresholdRatio={_restockThresholdRatio:F2}, shortThresholdSec={_dynamicRestockThresholdSec?.ToString() ?? "(yok)"}");
+            foreach (var kv in _macroRestockByClient)
+                RefreshShortThresholdFromBaseline(kv.Value);
+            LogRestockFlow($"settings loaded: maxNotification={_restockMaxNotificationCount}, thresholdPercent={s.RestockThresholdPercent}, thresholdRatio={_restockThresholdRatio:F2}");
         }
 
         void LogRestockFlow(string message)

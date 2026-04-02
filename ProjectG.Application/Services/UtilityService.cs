@@ -85,13 +85,16 @@ namespace ProjectG.ApplicationLayer.Services
             return tesseractFolder;
         }
 
-        public static int SetCycleDowntime()
+        /// <param name="shortModeMsRange">
+        /// Yalnızca <see cref="CycleDowntime.Short"/> için kullanılan [min, max] ms; null ise <see cref="AppSettings.DynamicShortCycleDowntimeMs"/>.
+        /// </param>
+        public static int SetCycleDowntime(int[]? shortModeMsRange = null)
         {
             switch (AppSettings.CycleDowntime)
             {
                 case CycleDowntime.Short:
                 {
-                    int[] r = AppSettings.DynamicShortCycleDowntimeMs;
+                    int[] r = shortModeMsRange ?? AppSettings.DynamicShortCycleDowntimeMs;
                     if (r is null || r.Length < 2)
                         return Random.Shared.Next(15000, 25001);
                     int lo = Math.Max(1000, r[0]);

@@ -20,6 +20,22 @@ namespace ProjectG.ApplicationLayer.Services
         public static IntPtr GetForegroundWindowHandle() => GetForegroundWindow();
 
         /// <summary>
+        /// <see cref="AppSettings.DualClient"/> açıkken ön plandaki WoW ana penceresi; aksi halde <see cref="IntPtr.Zero"/>.
+        /// </summary>
+        public static IntPtr TryGetForegroundWowMainWindowHandle()
+        {
+            if (!AppSettings.DualClient)
+                return IntPtr.Zero;
+
+            var handles = GetSortedWowMainWindowHandles();
+            if (handles.Count == 0)
+                return IntPtr.Zero;
+
+            IntPtr fg = GetForegroundWindow();
+            return TryGetSortedWowIndexForForeground(handles, fg, out int idx) ? handles[idx] : IntPtr.Zero;
+        }
+
+        /// <summary>
         /// Odak, WoW ana penceresi veya bu ana pencerenin alt penceresi olduğunda sıralı listedeki indeksi döner
         /// (<see cref="GetForegroundWindow"/> genelde tam <see cref="Process.MainWindowHandle"/> değildir).
         /// </summary>

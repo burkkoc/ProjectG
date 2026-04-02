@@ -1,4 +1,5 @@
 using ProjectG.DomainLayer.Entities.Concrete;
+using ProjectG.DomainLayer.Entities.Enums;
 using System.Collections.Concurrent;
 
 namespace ProjectG.ApplicationLayer.Services
@@ -18,7 +19,60 @@ namespace ProjectG.ApplicationLayer.Services
     {
         static readonly ConcurrentDictionary<IntPtr, DateTime> NextWorkAllowedUtcByMainWindow = new();
 
-        public static void Reset() => NextWorkAllowedUtcByMainWindow.Clear();
+        /// <summary>
+        /// İptal fazı sonrası Short cycle [min,max] ms; çift istemicide her WoW ana penceresi ayrı (global <see cref="AppSettings.DynamicShortCycleDowntimeMs"/> yedeği).
+        /// </summary>
+        static readonly ConcurrentDictionary<IntPtr, int[]> PerClientDynamicShortCycleDowntimeMs = new();
+
+        /// <summary>
+        /// <see cref="State.OnCycleDowntime"/> içinde kalındığı sürece handler birden fazla çağrılabilir; istemci değişimi yalnızca bu kalışa bir kez yapılmalı.
+        /// </summary>
+        static bool _dualClientHandoffPendingThisDowntimeStay = true;
+
+        /// <summary>Yeni WoW'a geçildi; downtime oyuncusu bir kez T/Y ile AH hedefini ve sohbet penceresini yenilemeli.</summary>
+        static bool _pendingAhPrepAfterWoWHandoff;
+
+        public static void Reset()
+        {
+            NextWorkAllowedUtcByMainWindow.Clear();
+            PerClientDynamicShortCycleDowntimeMs.Clear();
+            _dualClientHandoffPendingThisDowntimeStay = true;
+            _pendingAhPrepAfterWoWHandoff = false;
+        }
+
+        /// <summary>Cancel→Short dinamik aralığı bu WoW için saklar.</summary>
+        public static void SetPerClientDynamicShortCycleDowntimeMs(IntPtr mainWindowHandle, int minMs, int maxMs)
+        {
+            if (mainWindowHandle == IntPtr.Zero || !AppSettings.DualClient)
+                return;
+            PerClientDynamicShortCycleDowntimeMs[mainWindowHandle] = [minMs, maxMs];
+        }
+
+        /// <summary>
+        /// <see cref="CycleDowntime.Short"/> ve çift istemici için bu pencereye özgü aralık varsa döner.
+        /// </summary>
+        public static bool TryGetPerClientDynamicShortCycleDowntimeMs(IntPtr mainWindowHandle, out int[] rangeMs)
+        {
+            rangeMs = null!;
+            if (mainWindowHandle == IntPtr.Zero || !AppSettings.DualClient)
+                return false;
+            if (!PerClientDynamicShortCycleDowntimeMs.TryGetValue(mainWindowHandle, out var r) || r is not { Length: >= 2 })
+                return false;
+            rangeMs = r;
+            return true;
+        }
+
+        /// <summary>Makro <see cref="State.OnCycleDowntime"/> durumuna her geçişte çağrılır.</summary>
+        public static void MarkOnCycleDowntimeEntered() => _dualClientHandoffPendingThisDowntimeStay = true;
+
+        /// <summary>Tam el değişimi yapıldıysa true döner ve bayrağı temizler (aynı çağrıda tüketilir).</summary>
+        public static bool TryConsumePendingAhPrepAfterWoWHandoff()
+        {
+            if (!_pendingAhPrepAfterWoWHandoff)
+                return false;
+            _pendingAhPrepAfterWoWHandoff = false;
+            return true;
+        }
 
         /// <summary>
         /// Ön plandaki WoW için (varsa) kalan beklemeyi uygular, yeni cycle downtime kaydeder, <see cref="SimulateService.SwitchWindow"/> çağırır.
@@ -28,6 +82,12 @@ namespace ProjectG.ApplicationLayer.Services
             var handles = WowDualClientWindowSwitcher.GetSortedWowMainWindowHandles();
             if (handles.Count < 2)
                 return DualDowntimeGateResult.NotEnoughWowWindows;
+
+            if (!_dualClientHandoffPendingThisDowntimeStay)
+            {
+                WowDualClientWindowSwitcher.PublishDualClientUiState(handles);
+                return DualDowntimeGateResult.Ok;
+            }
 
             WowDualClientWindowSwitcher.PublishDualClientUiState(handles);
 
@@ -47,7 +107,12 @@ namespace ProjectG.ApplicationLayer.Services
                 await WaitClientCooldownWithUiAsync(deadline, idx + 1, handles.Count);
             }
 
-            int downtimeMs = UtilityService.SetCycleDowntime();
+            int[]? shortOverride = null;
+            if (AppSettings.CycleDowntime == CycleDowntime.Short
+                && TryGetPerClientDynamicShortCycleDowntimeMs(thisHwnd, out var pr))
+                shortOverride = pr;
+
+            int downtimeMs = UtilityService.SetCycleDowntime(shortOverride);
             AppSettings.Downtime = downtimeMs;
             NextWorkAllowedUtcByMainWindow[thisHwnd] = DateTime.UtcNow.AddMilliseconds(downtimeMs);
             AppSettings.DualClientWaitRemainingSeconds = 0;
@@ -55,6 +120,8 @@ namespace ProjectG.ApplicationLayer.Services
             await simulate.SwitchWindow();
             AppSettings.Downtime = 0;
             WowDualClientWindowSwitcher.PublishDualClientUiState();
+            _dualClientHandoffPendingThisDowntimeStay = false;
+            _pendingAhPrepAfterWoWHandoff = true;
 
             return DualDowntimeGateResult.Ok;
         }

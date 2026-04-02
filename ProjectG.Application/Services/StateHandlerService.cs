@@ -26,8 +26,6 @@ namespace ProjectG.ApplicationLayer.Services
         private Task<bool>? isWindowOpen = null;
         private bool startingNow = true;
         private DateTime? cancelingLoadedEnteredUtc;
-        private TimeSpan? firstCancelingLoadedDuration;
-        private TimeSpan cancelingLoadedExtraThreshold = TimeSpan.FromSeconds(5);
         private int? _cancelingLoadedPickedMaxStaySec;
 
         enum DynamicAhFlowVariant
@@ -62,7 +60,13 @@ namespace ProjectG.ApplicationLayer.Services
         {
             try
             {
-                await Task.Delay(UtilityService.GenerateRandom(2400, 3601));
+                MacroSessionExitService.ExitIfScheduledDurationElapsed();
+
+                bool ahPrepAfterWowHandoff = false;
+                // Çoklu istemicide diğer WoW'a elle devri önceliği; tek istemicide daha uzun doğal ara.
+                int downtimeEntryDelayHi = AppSettings.DualClient && !startingNow ? 1951 : 3601;
+                int downtimeEntryDelayLo = AppSettings.DualClient && !startingNow ? 700 : 2400;
+                await Task.Delay(UtilityService.GenerateRandom(downtimeEntryDelayLo, downtimeEntryDelayHi));
 
                 if (!startingNow)
                 {
@@ -83,6 +87,7 @@ namespace ProjectG.ApplicationLayer.Services
                         }
 
                         DualClientLayoutStore.EnsureGlobalsMatchForegroundWow();
+                        ahPrepAfterWowHandoff = DualClientCycleCoordinator.TryConsumePendingAhPrepAfterWoWHandoff();
                     }
                     else
                     {
@@ -116,7 +121,7 @@ namespace ProjectG.ApplicationLayer.Services
                 {
                     TSMWindow.ChatWindow = await PixelProcessService.FindChatWindow(Enums.ActiveWindow.Chat);
                 }
-                if (startingNow || isResetted)
+                if (startingNow || isResetted || ahPrepAfterWowHandoff)
                 {
                     result = await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.VK_T);
                     await Task.Delay(UtilityService.GenerateRandom(42, 108));
@@ -126,10 +131,17 @@ namespace ProjectG.ApplicationLayer.Services
                     startingNow = false;
 
                 }
+
+                if (ahPrepAfterWowHandoff)
+                {
+                    await Task.Delay(UtilityService.GenerateRandom(420, 920));
+                    TSMWindow.ChatWindow = await PixelProcessService.FindChatWindow(Enums.ActiveWindow.Chat);
+                }
+
                 if (TSMWindow.ChatWindow != null)
                 {
 
-                    if (exitCounter > 0 || isResetted)
+                    if (exitCounter > 0 || isResetted || ahPrepAfterWowHandoff)
                     {
                         exitCounter = 0;
                         if (isResetted)
@@ -334,7 +346,7 @@ namespace ProjectG.ApplicationLayer.Services
                     AppSettings.State = State.PostingDone;
                 }
                 else
-                    await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
+                    await _simulateService.SendRapidMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
             }
             catch
             {
@@ -429,6 +441,7 @@ namespace ProjectG.ApplicationLayer.Services
         {
             try
             {
+                IntPtr guildRestockClientKey = GuildBankRestockTrigger.ResolveRestockClientKey();
                 //await Task.Delay(500);
                 if (!await PixelProcessService.IsWindowOpen(Enums.ActiveWindow.MailBox))
                 {
@@ -470,7 +483,11 @@ namespace ProjectG.ApplicationLayer.Services
                     int longPauseThreshold = UtilityService.GenerateRandom(26, 40);
                     if (onlyMailBoxOpen && Random.Shared.Next(100) < closeChanceThreshold)
                     {
-                        if (Random.Shared.Next(100) < longPauseThreshold)
+                        if (AppSettings.DualClient)
+                        {
+                            await Task.Delay(UtilityService.GenerateRandom(160, 451));
+                        }
+                        else if (Random.Shared.Next(100) < longPauseThreshold)
                             await Task.Delay(UtilityService.GenerateRandom(1200, 2901));
                         else
                             await Task.Delay(UtilityService.GenerateRandom(280, 1050));
@@ -481,9 +498,11 @@ namespace ProjectG.ApplicationLayer.Services
                 }
 
                 if (AppSettings.State == State.OnCycleDowntime && AppSettings.GuildBankPosition != null
-                    && GuildBankRestockTrigger.ShouldRunGuildBank(NtfySettingsStore.Load()))
+                    && GuildBankRestockTrigger.ShouldRunGuildBank(NtfySettingsStore.Load(), guildRestockClientKey))
                 {
-                    await Task.Delay(UtilityService.GenerateRandom(320, 880));
+                    await Task.Delay(AppSettings.DualClient
+                        ? UtilityService.GenerateRandom(120, 401)
+                        : UtilityService.GenerateRandom(320, 880));
                     bool guildClicked = await _simulateService.MouseClickGuildBank((Rectangle)AppSettings.GuildBankPosition);
                     if (guildClicked)
                     {
@@ -492,7 +511,7 @@ namespace ProjectG.ApplicationLayer.Services
                     }
                 }
 
-                GuildBankRestockTrigger.RollCycleBaselinesAfterDowntimeGuildCheck();
+                GuildBankRestockTrigger.RollCycleBaselinesAfterDowntimeGuildCheck(guildRestockClientKey);
                 //amIGoingToCloseMailbox = new Random().Next(0, 2) == 1;
                 //{
                 //    if (amIGoingToCloseMailbox)
@@ -567,7 +586,7 @@ namespace ProjectG.ApplicationLayer.Services
                 _onCycleDowntimeEntryEscHandled = false;
                 AppSettings.State = State.OnCycleDowntime;
                 result = false;
-                GuildBankRestockTrigger.RecordGuildBankFlowCompleted(NtfySettingsStore.Load());
+                GuildBankRestockTrigger.RecordGuildBankFlowCompleted(NtfySettingsStore.Load(), GuildBankRestockTrigger.ResolveRestockClientKey());
             }
             catch
             {
@@ -731,15 +750,6 @@ namespace ProjectG.ApplicationLayer.Services
                     return;
                 }
 
-                if (firstCancelingLoadedDuration.HasValue
-                    && DateTime.UtcNow - cancelingLoadedEnteredUtc.Value > firstCancelingLoadedDuration.Value + cancelingLoadedExtraThreshold)
-                {
-                    AppSettings.State = State.CancelingDone;
-                    cancelingLoadedEnteredUtc = null;
-                    _cancelingLoadedPickedMaxStaySec = null;
-                    return;
-                }
-
                 if (resultTask == null || !resultTask.Result)
                 {
                     resultTask = Task.Run(() => TesseractService.IsTextExist(SearchTerms.PostCancelFinished, Paths.PostCancelImagePath));
@@ -760,7 +770,6 @@ namespace ProjectG.ApplicationLayer.Services
                 if (isFailed.Result && isFailed.IsCompleted)
                 {
                     AppSettings.State = State.CancelingDone;
-                    TrySetFirstCancelingLoadedDuration();
                     cancelingLoadedEnteredUtc = null;
                     _cancelingLoadedPickedMaxStaySec = null;
                     return;
@@ -780,12 +789,11 @@ namespace ProjectG.ApplicationLayer.Services
                     isWindowOpen = null;
                     isFailed = null;
                     AppSettings.State = State.CancelingDone;
-                    TrySetFirstCancelingLoadedDuration();
                     cancelingLoadedEnteredUtc = null;
                     _cancelingLoadedPickedMaxStaySec = null;
                 }
                 else
-                    await _simulateService.SendHumanizedMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
+                    await _simulateService.SendRapidMacroKey(WindowsInput.Native.VirtualKeyCode.VK_E);
 
             }
             catch
@@ -811,12 +819,13 @@ namespace ProjectG.ApplicationLayer.Services
                 await Task.Delay(UtilityService.GenerateRandom(120, 280));
             }
 
+            await OptionalMacroNtfyNotifier.NotifyStallRecoveryIfEnabledAsync(stalledInState);
             await ResetCycle();
         }
 
         private async Task ResetCycle()
         {
-            GuildBankRestockTrigger.ClearCurrentCycleFirstPost();
+            GuildBankRestockTrigger.ClearCurrentCycleFirstPost(GuildBankRestockTrigger.ResolveRestockClientKey());
             _onCycleDowntimeEntryEscHandled = false;
             AppSettings.State = State.OnCycleDowntime;
             isResetted = true;
@@ -832,13 +841,6 @@ namespace ProjectG.ApplicationLayer.Services
             //{
             //    await _simulateService.SendMacroKey(WindowsInput.Native.VirtualKeyCode.ESCAPE);
             //}
-        }
-
-        private void TrySetFirstCancelingLoadedDuration()
-        {
-            if (firstCancelingLoadedDuration.HasValue || !cancelingLoadedEnteredUtc.HasValue)
-                return;
-            firstCancelingLoadedDuration = DateTime.UtcNow - cancelingLoadedEnteredUtc.Value;
         }
 
         /// <summary>
@@ -893,7 +895,6 @@ namespace ProjectG.ApplicationLayer.Services
         private void LoadCancelingLoadedThresholdSettings()
         {
             var settings = NtfySettingsStore.Load();
-            cancelingLoadedExtraThreshold = TimeSpan.FromSeconds(Math.Max(0, settings.CancelingLoadedExtraThresholdSeconds));
             AppSettings.CancelingLoadedMaxStayMinSeconds = settings.CancelingLoadedMaxStayMinSeconds;
             AppSettings.CancelingLoadedMaxStayMaxSeconds = settings.CancelingLoadedMaxStayMaxSeconds;
         }

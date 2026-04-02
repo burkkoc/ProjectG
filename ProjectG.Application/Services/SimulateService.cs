@@ -177,6 +177,8 @@ namespace ProjectG.ApplicationLayer.Services
 
             if (!result)
             {
+                bool guildBank = cornerReferencePath.IndexOf("GuildBank", StringComparison.OrdinalIgnoreCase) >= 0;
+                await OptionalMacroNtfyNotifier.NotifyCornerReferenceFailureIfEnabledAsync(guildBank);
                 AppSettings.State = State.OnCycleDowntime;
                 return false;
             }
@@ -223,6 +225,24 @@ namespace ProjectG.ApplicationLayer.Services
             }
 
             await Task.Delay(UtilityService.GenerateRandom(70, 361));
+            return true;
+        }
+
+        /// <summary>
+        /// Post/Cancel yüklemede E ile sık tarama: tur aralığı kısa kalır; basılı tutma tek parmak “hızlı vuruş” gibi değişken ve insani (çok kısa makine hissi yok).
+        /// </summary>
+        public async Task<bool> SendRapidMacroKey(VirtualKeyCode vkCode)
+        {
+            int beforeDown = UtilityService.GenerateRandom(5, 26);
+            int holdMs = Random.Shared.Next(100) < 82
+                ? UtilityService.GenerateRandom(24, 58)
+                : UtilityService.GenerateRandom(58, 95);
+            int afterUp = UtilityService.GenerateRandom(6, 24);
+            await Task.Run(() =>
+            {
+                _inputSimulator.Keyboard.Sleep(beforeDown).KeyDown(vkCode).Sleep(holdMs).KeyUp(vkCode).Sleep(afterUp);
+            });
+            await Task.Delay(UtilityService.GenerateRandom(8, 42));
             return true;
         }
 

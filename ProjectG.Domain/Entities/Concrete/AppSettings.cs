@@ -88,6 +88,15 @@ namespace ProjectG.DomainLayer.Entities.Concrete
         /// <summary>Dual client: bu WoW için döngü beklemesi — sıradaki işe başlamadan kalan saniye (UI).</summary>
         public static volatile int DualClientWaitRemainingSeconds;
 
+        /// <summary>
+        /// Makro oturumu <see cref="MacroSessionStartedUtc"/> ile ölçülür; bu kadar (dakika) geçince
+        /// bir sonraki OnCycleDowntime başında WoW sonlandırılır ve uygulama kapanır. 0 = kapalı.
+        /// </summary>
+        public static int ExitTime { get; set; }
+
+        /// <summary>Makro döngüsü başladığında (Start) UTC olarak atanır.</summary>
+        public static DateTime MacroSessionStartedUtc { get; set; }
+
         public static void Reset()
         {
             MailBoxPosition = null;
@@ -98,6 +107,7 @@ namespace ProjectG.DomainLayer.Entities.Concrete
             DualClientActiveSlot = 0;
             DualClientTotalWow = 0;
             DualClientWaitRemainingSeconds = 0;
+            MacroSessionStartedUtc = default;
         }
 
 

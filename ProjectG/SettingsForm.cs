@@ -1,5 +1,6 @@
 using System.Globalization;
 using ProjectG.ApplicationLayer.Services;
+using ProjectG.DomainLayer.Entities.Concrete;
 
 namespace ProjectG.PresentationLayer
 {
@@ -21,12 +22,16 @@ namespace ProjectG.PresentationLayer
             txtGuildBankMinIntervalMinutes.Text = s.GuildBankMinIntervalMinutes.ToString(CultureInfo.InvariantCulture);
             txtGuildBankMaxIntervalMinutes.Text = s.GuildBankMaxIntervalMinutes.ToString(CultureInfo.InvariantCulture);
             txtGuildBankAfterNotifyDeltaSec.Text = s.GuildBankAfterNotifyMinSecondsShorterThanFirst.ToString(CultureInfo.InvariantCulture);
-            txtCancelingLoadedExtraThresholdSeconds.Text = s.CancelingLoadedExtraThresholdSeconds.ToString();
             txtCancelingLoadedMaxStayMinSeconds.Text = s.CancelingLoadedMaxStayMinSeconds.ToString();
             txtCancelingLoadedMaxStayMaxSeconds.Text = s.CancelingLoadedMaxStayMaxSeconds.ToString();
             txtDynamicShortMinTMult.Text = s.DynamicShortAfterCancelMinTMultiplier.ToString(CultureInfo.InvariantCulture);
             txtDynamicShortMaxTMult.Text = s.DynamicShortAfterCancelMaxTMultiplier.ToString(CultureInfo.InvariantCulture);
             txtDynamicShortMaxExtraSec.Text = s.DynamicShortAfterCancelMaxExtraSeconds.ToString(CultureInfo.InvariantCulture);
+            txtExitTimeMinutes.Text = s.ExitTimeMinutes.ToString(CultureInfo.InvariantCulture);
+            chkNotifyStallRecovery.Checked = s.NotifyOnStallRecovery;
+            chkNotifyCriticalClickFailure.Checked = s.NotifyOnCriticalClickFailure;
+            int warnBefore = Math.Clamp(s.ExitTimeNotifyMinutesBefore, (int)numExitTimeNotifyBefore.Minimum, (int)numExitTimeNotifyBefore.Maximum);
+            numExitTimeNotifyBefore.Value = warnBefore;
         }
 
         void btnSave_Click(object? sender, EventArgs e)
@@ -150,17 +155,6 @@ namespace ProjectG.PresentationLayer
                 return;
             }
 
-            if (!int.TryParse(txtCancelingLoadedExtraThresholdSeconds.Text.Trim(), out var cancelingLoadedExtraThresholdSeconds)
-                || cancelingLoadedExtraThresholdSeconds < 0)
-            {
-                MessageBox.Show(
-                    "CancelingLoaded Extra Threshold (sec) icin 0 veya daha buyuk bir tam sayi girin.",
-                    "Project G",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-                return;
-            }
-
             if (!int.TryParse(txtCancelingLoadedMaxStayMinSeconds.Text.Trim(), out var cancelingLoadedMaxStayMinSec)
                 || cancelingLoadedMaxStayMinSec < 1
                 || cancelingLoadedMaxStayMinSec > 600)
@@ -231,6 +225,18 @@ namespace ProjectG.PresentationLayer
                 return;
             }
 
+            if (!int.TryParse(txtExitTimeMinutes.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var exitTimeMinutes)
+                || exitTimeMinutes < 0
+                || exitTimeMinutes > 10_080)
+            {
+                MessageBox.Show(
+                    "Makro ust suresi (dk) icin 0 (kapali) veya 1-10080 arasi tam sayi girin.",
+                    "Project G",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
             settings.NtfyNotifyTopicUrl = normalized;
             settings.MailboxLocateHotkey = mailboxKeyText.ToUpperInvariant();
             settings.GuildBankLocateHotkey = guildBankKeyText.ToUpperInvariant();
@@ -239,12 +245,16 @@ namespace ProjectG.PresentationLayer
             settings.GuildBankMinIntervalMinutes = guildBankMinIntervalMin;
             settings.GuildBankMaxIntervalMinutes = guildBankMaxIntervalMin;
             settings.GuildBankAfterNotifyMinSecondsShorterThanFirst = guildBankAfterNotifyDeltaSec;
-            settings.CancelingLoadedExtraThresholdSeconds = cancelingLoadedExtraThresholdSeconds;
             settings.CancelingLoadedMaxStayMinSeconds = cancelingLoadedMaxStayMinSec;
             settings.CancelingLoadedMaxStayMaxSeconds = cancelingLoadedMaxStayMaxSec;
             settings.DynamicShortAfterCancelMinTMultiplier = dsMinT;
             settings.DynamicShortAfterCancelMaxTMultiplier = dsMaxT;
             settings.DynamicShortAfterCancelMaxExtraSeconds = dsExtra;
+            settings.ExitTimeMinutes = exitTimeMinutes;
+            settings.NotifyOnStallRecovery = chkNotifyStallRecovery.Checked;
+            settings.NotifyOnCriticalClickFailure = chkNotifyCriticalClickFailure.Checked;
+            settings.ExitTimeNotifyMinutesBefore = (int)numExitTimeNotifyBefore.Value;
+            AppSettings.ExitTime = exitTimeMinutes;
             NtfySettingsStore.Save(settings);
             InternetConnectivityMonitor.ApplyNtfyUrls(normalized);
             DialogResult = DialogResult.OK;
