@@ -72,7 +72,7 @@ namespace ProjectG.PresentationLayer
             txtNtfyNotifyUrl.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             txtNtfyNotifyUrl.Location = new Point(12, 33);
             txtNtfyNotifyUrl.Name = "txtNtfyNotifyUrl";
-            txtNtfyNotifyUrl.Size = new Size(414, 23);
+            txtNtfyNotifyUrl.Size = new Size(611, 23);
             txtNtfyNotifyUrl.TabIndex = 1;
             // 
             // lblMailboxLocateHotkey
@@ -289,7 +289,7 @@ namespace ProjectG.PresentationLayer
             groupBoxDynamicAh.Controls.Add(radioSettingsDynamicAhV12Heavy);
             groupBoxDynamicAh.Location = new Point(12, 502);
             groupBoxDynamicAh.Name = "groupBoxDynamicAh";
-            groupBoxDynamicAh.Size = new Size(414, 72);
+            groupBoxDynamicAh.Size = new Size(611, 76);
             groupBoxDynamicAh.TabIndex = 44;
             groupBoxDynamicAh.TabStop = false;
             groupBoxDynamicAh.Text = "Dynamic AH — V1-V4 agirligi (Ana pencerede Dynamic acikken)";
@@ -297,9 +297,9 @@ namespace ProjectG.PresentationLayer
             // radioSettingsDynamicAhV34Heavy
             // 
             radioSettingsDynamicAhV34Heavy.AutoSize = true;
-            radioSettingsDynamicAhV34Heavy.Location = new Point(8, 44);
+            radioSettingsDynamicAhV34Heavy.Location = new Point(8, 48);
             radioSettingsDynamicAhV34Heavy.Name = "radioSettingsDynamicAhV34Heavy";
-            radioSettingsDynamicAhV34Heavy.Size = new Size(280, 19);
+            radioSettingsDynamicAhV34Heavy.Size = new Size(215, 19);
             radioSettingsDynamicAhV34Heavy.TabIndex = 1;
             radioSettingsDynamicAhV34Heavy.Text = "V3 - V4 agirlikli (V1 - V2 daha dusuk)";
             radioSettingsDynamicAhV34Heavy.UseVisualStyleBackColor = true;
@@ -309,7 +309,7 @@ namespace ProjectG.PresentationLayer
             radioSettingsDynamicAhV12Heavy.AutoSize = true;
             radioSettingsDynamicAhV12Heavy.Location = new Point(8, 22);
             radioSettingsDynamicAhV12Heavy.Name = "radioSettingsDynamicAhV12Heavy";
-            radioSettingsDynamicAhV12Heavy.Size = new Size(280, 19);
+            radioSettingsDynamicAhV12Heavy.Size = new Size(215, 19);
             radioSettingsDynamicAhV12Heavy.TabIndex = 0;
             radioSettingsDynamicAhV12Heavy.TabStop = true;
             radioSettingsDynamicAhV12Heavy.Text = "V1 - V2 agirlikli (V3 - V4 daha dusuk)";
@@ -318,7 +318,7 @@ namespace ProjectG.PresentationLayer
             // chkNotifyStallRecovery
             // 
             chkNotifyStallRecovery.AutoSize = true;
-            chkNotifyStallRecovery.Location = new Point(12, 582);
+            chkNotifyStallRecovery.Location = new Point(12, 586);
             chkNotifyStallRecovery.Name = "chkNotifyStallRecovery";
             chkNotifyStallRecovery.Size = new Size(350, 19);
             chkNotifyStallRecovery.TabIndex = 40;
@@ -328,7 +328,7 @@ namespace ProjectG.PresentationLayer
             // chkNotifyCriticalClickFailure
             // 
             chkNotifyCriticalClickFailure.AutoSize = true;
-            chkNotifyCriticalClickFailure.Location = new Point(12, 529);
+            chkNotifyCriticalClickFailure.Location = new Point(12, 608);
             chkNotifyCriticalClickFailure.Name = "chkNotifyCriticalClickFailure";
             chkNotifyCriticalClickFailure.Size = new Size(339, 19);
             chkNotifyCriticalClickFailure.TabIndex = 41;
@@ -338,7 +338,7 @@ namespace ProjectG.PresentationLayer
             // lblExitTimeNotifyBefore
             // 
             lblExitTimeNotifyBefore.AutoSize = true;
-            lblExitTimeNotifyBefore.Location = new Point(12, 629);
+            lblExitTimeNotifyBefore.Location = new Point(12, 633);
             lblExitTimeNotifyBefore.Name = "lblExitTimeNotifyBefore";
             lblExitTimeNotifyBefore.Size = new Size(316, 15);
             lblExitTimeNotifyBefore.TabIndex = 42;
@@ -346,7 +346,7 @@ namespace ProjectG.PresentationLayer
             // 
             // numExitTimeNotifyBefore
             // 
-            numExitTimeNotifyBefore.Location = new Point(12, 647);
+            numExitTimeNotifyBefore.Location = new Point(12, 651);
             numExitTimeNotifyBefore.Maximum = new decimal(new int[] { 120, 0, 0, 0 });
             numExitTimeNotifyBefore.Name = "numExitTimeNotifyBefore";
             numExitTimeNotifyBefore.Size = new Size(72, 23);
@@ -355,7 +355,7 @@ namespace ProjectG.PresentationLayer
             // btnSave
             // 
             btnSave.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnSave.Location = new Point(273, 608);
+            btnSave.Location = new Point(463, 658);
             btnSave.Name = "btnSave";
             btnSave.Size = new Size(75, 32);
             btnSave.TabIndex = 19;
@@ -366,7 +366,7 @@ namespace ProjectG.PresentationLayer
             // btnCancel
             // 
             btnCancel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnCancel.Location = new Point(354, 658);
+            btnCancel.Location = new Point(544, 658);
             btnCancel.Name = "btnCancel";
             btnCancel.Size = new Size(75, 32);
             btnCancel.TabIndex = 20;
@@ -378,13 +378,14 @@ namespace ProjectG.PresentationLayer
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(438, 652);
+            ClientSize = new Size(635, 702);
             Controls.Add(btnCancel);
             Controls.Add(btnSave);
             Controls.Add(numExitTimeNotifyBefore);
             Controls.Add(lblExitTimeNotifyBefore);
             Controls.Add(chkNotifyCriticalClickFailure);
             Controls.Add(chkNotifyStallRecovery);
+            Controls.Add(groupBoxDynamicAh);
             Controls.Add(txtExitTimeMinutes);
             Controls.Add(lblExitTimeMinutes);
             Controls.Add(txtDynamicShortMaxExtraSec);
