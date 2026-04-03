@@ -1,3 +1,5 @@
+using ProjectG.DomainLayer.Entities.Enums;
+
 namespace ProjectG.ApplicationLayer.Services
 {
     public sealed class NtfyUserSettings
@@ -43,6 +45,9 @@ namespace ProjectG.ApplicationLayer.Services
 
         /// <summary>Ana penceredeki Dynamic kutusu; uygulama kapanışında kaydedilir.</summary>
         public bool DynamicAhFlowEnabled { get; set; }
+
+        /// <summary>Dynamic açıkken: V1–V2 veya V3–V4 ağırlıklı varyant seçimi.</summary>
+        public DynamicAhFlowMode DynamicAhFlowMode { get; set; } = DynamicAhFlowMode.V1V2Heavy;
 
         /// <summary>Tek istemci: Z/X posta ve guild bank kalibrasyonu (ekran çözünürlüğü ile).</summary>
         public SlotCalibrationPersist? SingleClientCalibration { get; set; }

@@ -32,7 +32,9 @@ namespace ProjectG.ApplicationLayer.Services
         {
             None,
             ClassicCancelFirst,
+            /// <summary>Eski V3 mantigi: kisa bekleme, 2. exit sonrasi posta (ikinci post yok).</summary>
             PostDelayCancelPost,
+            /// <summary>Eski V2 mantigi: uzun bekleme, 2. exit sonrasi ikinci post sonra posta.</summary>
             PostThenCancel,
             PostDelayThenCancel,
         }
@@ -248,7 +250,7 @@ namespace ProjectG.ApplicationLayer.Services
                 if (!_dynamicAhFlowLocked)
                 {
                     _dynamicAhFlowLocked = true;
-                    _dynamicAhFlowVariant = PickDynamicAhFlowVariantWeighted();
+                    _dynamicAhFlowVariant = PickDynamicAhFlowVariant();
                 }
 
                 if (_dynamicAhFlowVariant == DynamicAhFlowVariant.ClassicCancelFirst)
@@ -407,10 +409,14 @@ namespace ProjectG.ApplicationLayer.Services
                 }
                 else if (ShouldInterceptPostingDoneForDynamicAhFlow())
                 {
-                    if (_dynamicAhFlowVariant == DynamicAhFlowVariant.PostDelayCancelPost
+                    if (_dynamicAhFlowVariant == DynamicAhFlowVariant.PostThenCancel
                         || _dynamicAhFlowVariant == DynamicAhFlowVariant.PostDelayThenCancel)
                     {
                         await Task.Delay(Random.Shared.Next(5000, 10001));
+                    }
+                    else if (_dynamicAhFlowVariant == DynamicAhFlowVariant.PostDelayCancelPost)
+                    {
+                        await Task.Delay(Random.Shared.Next(700, 2201));
                     }
 
                     _dynamicAhPostFirstExitExpectCancel = true;
@@ -657,7 +663,7 @@ namespace ProjectG.ApplicationLayer.Services
 
                 if (exitCounter == 2)
                 {
-                    if (_dynamicAhFlowVariant == DynamicAhFlowVariant.PostDelayCancelPost)
+                    if (_dynamicAhFlowVariant == DynamicAhFlowVariant.PostThenCancel)
                     {
                         await _simulateService.MouseClick(StaticTSMButtons.RunPostScan ?? throw new NullReferenceException());
                         AppSettings.State = State.RunPostButtonClicked;
@@ -665,7 +671,7 @@ namespace ProjectG.ApplicationLayer.Services
                         return;
                     }
 
-                    if (_dynamicAhFlowVariant == DynamicAhFlowVariant.PostThenCancel
+                    if (_dynamicAhFlowVariant == DynamicAhFlowVariant.PostDelayCancelPost
                         || _dynamicAhFlowVariant == DynamicAhFlowVariant.PostDelayThenCancel)
                     {
                         _dynamicAhForceMailboxPostingDone = true;
@@ -908,13 +914,44 @@ namespace ProjectG.ApplicationLayer.Services
             _dynamicAhForceMailboxPostingDone = false;
         }
 
-        /// <summary>Taban V1=22, V2=38, V3=28, V4=12 yüzde + küçük jitter; normalize edilip tek seçim.</summary>
-        static DynamicAhFlowVariant PickDynamicAhFlowVariantWeighted()
+        static DynamicAhFlowVariant PickDynamicAhFlowVariant()
         {
-            double w1 = 22 + Random.Shared.Next(-3, 4);
-            double w2 = 38 + Random.Shared.Next(-3, 4);
-            double w3 = 28 + Random.Shared.Next(-3, 4);
-            double w4 = 12 + Random.Shared.Next(-3, 4);
+            return AppSettings.DynamicAhFlowMode == DynamicAhFlowMode.V3V4Heavy
+                ? PickV3V4HeavyVariant()
+                : PickV1V2HeavyVariant();
+        }
+
+        /// <summary>V3–V4 yüksek; V1–V2 düşük-orta.</summary>
+        static DynamicAhFlowVariant PickV3V4HeavyVariant()
+        {
+            double w1 = 12 + Random.Shared.Next(-3, 4);
+            double w2 = 13 + Random.Shared.Next(-3, 4);
+            double w3 = 38 + Random.Shared.Next(-4, 5);
+            double w4 = 37 + Random.Shared.Next(-4, 5);
+            w1 = Math.Max(1, w1);
+            w2 = Math.Max(1, w2);
+            w3 = Math.Max(1, w3);
+            w4 = Math.Max(1, w4);
+            double sum = w1 + w2 + w3 + w4;
+            double r = Random.Shared.NextDouble() * sum;
+            if (r < w1)
+                return DynamicAhFlowVariant.ClassicCancelFirst;
+            r -= w1;
+            if (r < w2)
+                return DynamicAhFlowVariant.PostDelayCancelPost;
+            r -= w2;
+            if (r < w3)
+                return DynamicAhFlowVariant.PostThenCancel;
+            return DynamicAhFlowVariant.PostDelayThenCancel;
+        }
+
+        /// <summary>V1–V2 yüksek; V3–V4 düşük-orta (PickV3V4Heavy ile simetrik ağırlık aynası).</summary>
+        static DynamicAhFlowVariant PickV1V2HeavyVariant()
+        {
+            double w1 = 38 + Random.Shared.Next(-4, 5);
+            double w2 = 37 + Random.Shared.Next(-4, 5);
+            double w3 = 12 + Random.Shared.Next(-3, 4);
+            double w4 = 13 + Random.Shared.Next(-3, 4);
             w1 = Math.Max(1, w1);
             w2 = Math.Max(1, w2);
             w3 = Math.Max(1, w3);

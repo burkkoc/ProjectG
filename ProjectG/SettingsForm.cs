@@ -1,6 +1,7 @@
 using System.Globalization;
 using ProjectG.ApplicationLayer.Services;
 using ProjectG.DomainLayer.Entities.Concrete;
+using ProjectG.DomainLayer.Entities.Enums;
 
 namespace ProjectG.PresentationLayer
 {
@@ -32,6 +33,10 @@ namespace ProjectG.PresentationLayer
             chkNotifyCriticalClickFailure.Checked = s.NotifyOnCriticalClickFailure;
             int warnBefore = Math.Clamp(s.ExitTimeNotifyMinutesBefore, (int)numExitTimeNotifyBefore.Minimum, (int)numExitTimeNotifyBefore.Maximum);
             numExitTimeNotifyBefore.Value = warnBefore;
+            if (s.DynamicAhFlowMode == DynamicAhFlowMode.V3V4Heavy)
+                radioSettingsDynamicAhV34Heavy.Checked = true;
+            else
+                radioSettingsDynamicAhV12Heavy.Checked = true;
         }
 
         void btnSave_Click(object? sender, EventArgs e)
@@ -254,7 +259,11 @@ namespace ProjectG.PresentationLayer
             settings.NotifyOnStallRecovery = chkNotifyStallRecovery.Checked;
             settings.NotifyOnCriticalClickFailure = chkNotifyCriticalClickFailure.Checked;
             settings.ExitTimeNotifyMinutesBefore = (int)numExitTimeNotifyBefore.Value;
+            settings.DynamicAhFlowMode = radioSettingsDynamicAhV34Heavy.Checked
+                ? DynamicAhFlowMode.V3V4Heavy
+                : DynamicAhFlowMode.V1V2Heavy;
             AppSettings.ExitTime = exitTimeMinutes;
+            AppSettings.DynamicAhFlowMode = settings.DynamicAhFlowMode;
             NtfySettingsStore.Save(settings);
             InternetConnectivityMonitor.ApplyNtfyUrls(normalized);
             DialogResult = DialogResult.OK;

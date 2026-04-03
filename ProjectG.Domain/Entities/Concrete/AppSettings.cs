@@ -51,6 +51,9 @@ namespace ProjectG.DomainLayer.Entities.Concrete
 
         /// <summary>AH menüde cancel/post sırası için ağırlıklı rastgele varyantlar; kapalıyısa her zaman önce cancel.</summary>
         public static bool DynamicAhFlow { get; set; } = false;
+
+        /// <summary><see cref="DynamicAhFlow"/> açıkken iki mod: giriş karışımı (V1–V4) veya V3–V4 ağırlıklı.</summary>
+        public static DynamicAhFlowMode DynamicAhFlowMode { get; set; } = DynamicAhFlowMode.V1V2Heavy;
         //if mailboxrandomizedpossibility is true
         public static bool MailBoxCloseRandomize { get; set; }
 

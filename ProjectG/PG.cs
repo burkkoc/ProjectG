@@ -145,6 +145,7 @@ namespace ProjectG
             else
                 DualClientLayoutStore.ApplyFirstPersistedDualSlotCalibrationToAppIfAny();
             AppSettings.ExitTime = settings.ExitTimeMinutes;
+            AppSettings.DynamicAhFlowMode = settings.DynamicAhFlowMode;
         }
 
         private void PersistMainWindowPreferencesToSettings()
@@ -220,6 +221,7 @@ namespace ProjectG
             {
                 LoadMailboxHotkeyFromSettings();
                 LoadGuildBankHotkeyFromSettings();
+                AppSettings.DynamicAhFlowMode = NtfySettingsStore.Load().DynamicAhFlowMode;
             }
         }
 
@@ -397,6 +399,7 @@ namespace ProjectG
                 AppSettings.Working = true;
                 AppSettings.DualClient = cBoxDualClient.Checked;
                 AppSettings.DynamicAhFlow = cBoxDynamic.Checked;
+                AppSettings.DynamicAhFlowMode = NtfySettingsStore.Load().DynamicAhFlowMode;
                 ApplyCustomDowntimeFromUi();
                 _uiHelper.SetCycleDowntime();
 

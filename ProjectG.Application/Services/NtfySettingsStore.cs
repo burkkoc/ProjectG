@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ProjectG.DomainLayer.Entities.Enums;
 
 namespace ProjectG.ApplicationLayer.Services
 {
@@ -71,6 +72,9 @@ namespace ProjectG.ApplicationLayer.Services
                 o.ExitTimeNotifyMinutesBefore = 0;
             else if (o.ExitTimeNotifyMinutesBefore > 120)
                 o.ExitTimeNotifyMinutesBefore = 120;
+            int ahMode = (int)o.DynamicAhFlowMode;
+            if (ahMode < 0 || ahMode > 1)
+                o.DynamicAhFlowMode = DynamicAhFlowMode.V1V2Heavy;
         }
 
         public static void Save(NtfyUserSettings settings)
